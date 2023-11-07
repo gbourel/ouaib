@@ -557,6 +557,7 @@ function updateAchievements() {
   for (let i = 1; i <= _journeys.length ; i++){
     if (!_journeys[i-1] || !_journeys[i-1].activities) { continue; }
     let elt = document.querySelector(`#level-${i} .percent`);
+    if (!elt) { continue; }
     let total =  _journeys[i-1].activities.length;
     let done = 0;
     for (let ch of _journeys[i-1].activities){
