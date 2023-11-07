@@ -26,7 +26,7 @@ export const gui = {
   loginWarning: () => {
     let lr = document.getElementById('login-required');
     lr.style.width = '100%';
-    lr.onclick = hideLoginPopup;
+    lr.onclick = gui.hideLoginPopup;
     document.getElementById('login-popup').style.transform = 'translate(0,0)';
   },
   hideLoginPopup: () => {
