@@ -3,3 +3,5 @@ public/bundle.js.map
 public/style.css
 
 node_modules/
+
+/dist

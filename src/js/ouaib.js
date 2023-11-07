@@ -555,6 +555,7 @@ function logout() {
 function updateAchievements() {
   if(!_user || !_journeys) { return; }
   for (let i = 1; i <= _journeys.length ; i++){
+    if (!_journeys[i-1] || !_journeys[i-1].activities) { continue; }
     let elt = document.querySelector(`#level-${i} .percent`);
     let total =  _journeys[i-1].activities.length;
     let done = 0;
