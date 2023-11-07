@@ -369,7 +369,7 @@ span.katex {
   padding: 160px 2rem 0rem 2rem;
   text-align: center;
   border-radius: 1rem;
-  background: 50% 10% / 20% no-repeat url("./img/connexion.png"),
+  background: 50% 10% / 20% no-repeat url(/img/connexion.png),
               linear-gradient(-45deg, #475569, #343E4C, #476669, #3a380f);
   box-shadow: 0 4px 6px -1px #00000055, 0 2px 4px -2px #00000055;
   border: 2px solid #35404e;
