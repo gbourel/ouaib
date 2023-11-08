@@ -386,7 +386,7 @@ span.katex {
               linear-gradient(-45deg, #475569, #343E4C, #476669, #3a380f);
   box-shadow: 0 4px 6px -1px #00000055, 0 2px 4px -2px #00000055;
   border: 2px solid #35404e;
-  transform: translate(0, -80vh);
+  transform: translate(0, -100vh);
   transition: transform .3s ease-in-out;
   z-index: 20;
 }
