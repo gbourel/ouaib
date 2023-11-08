@@ -46,6 +46,9 @@ code {
   gap: 8px;
   color: #234968;
 }
+#progress.hidden {
+  display: none;
+}
 #progress .nav-elt {
   display: flex;
   justify-content: center;
