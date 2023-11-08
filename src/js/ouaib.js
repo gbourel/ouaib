@@ -1,4 +1,4 @@
-const VERSION = 'v0.1.0';
+const VERSION = 'v0.1.1';
 document.getElementById('version').textContent = VERSION;
 
 import '../css/ouaib.css';

@@ -237,7 +237,7 @@ iframe {
 
 /* Markdown */
 
-ul {
+#instruction ul {
   margin-left: 1.5rem;
   list-style-type: circle;
 }
@@ -253,6 +253,16 @@ ul {
 }
 #instruction img.center {
   margin: auto;
+}
+#instruction a {
+  color: #91d8f9;
+  text-decoration: underline;
+}
+#instruction a:hover {
+  color: #bceaff;
+}
+#instruction a:visited {
+  color: #38abdf;
 }
 
 /* Background */
