@@ -165,12 +165,6 @@ function displayExercisesNav() {
       ne.classList.remove('selected');
     }
     elt.appendChild(marker);
-
-  //   // FIXME hack to hide nav for 2d game journey only
-  //   if (!done && _journey && _journey.id === 'b1ae00cc-9056-45ec-bd20-edab5ea8b166') {
-  //     return;
-  //   }
-  // }
   }
 }
 
@@ -252,7 +246,7 @@ function displayExercise() {
   _exercise = _exercises[_exerciseIdx];
 
   if (_exercise) {
-    let prog = '';
+    let prog = ' ';  // one space to force reload
     let lastprog = localStorage.getItem(getHTMLKey());
     if(!_htmlEditor) {
       initHTMLEditor();
@@ -304,10 +298,19 @@ function displayExercise() {
       prog = lastprog;
     } else {
       if (result) {
-        prog = result.response;
+        try {
+          let content = JSON.parse(result.response);
+          if (content.html) {
+            prog = content.html;
+          } else {
+            content = JSON.parse(content);
+            prog = content.html;
+          }
+        } catch(error) {
+          prog = result.response;
+        }
       }
     }
-    // _htmlEditor.setValue(prog);
     _htmlEditor.dispatch({
       changes: {from: 0, to: _htmlEditor.state.doc.length, insert: prog}
     });
