@@ -621,7 +621,7 @@ async function init(){
     // TODO session cache
     config.log('User loaded', user);
 
-    if(user) {
+    if(user && !user.err) {
       _user = user;
       document.getElementById('username').innerHTML = user.firstName || 'Moi';
       document.getElementById('profile-menu').classList.remove('hidden');
