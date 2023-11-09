@@ -395,16 +395,21 @@ function runCheck(doc, test) {
     expected: test.value.trim(),
     found : 'Échec du test'
   };
-  if (test.method === 'contains') {
+  if (test.method === 'contains' || test.method === 'style') {
     let elts = doc.querySelectorAll(test.selector);
     if (elts.length < 1) {
       res.found = `Élément non trouvé : ${test.selector}`;
     } else {
       for (let elt of elts) {
         if (elt && !res.passed) {
-          let tc = elt.textContent.trim();
-          res.found = tc;
-          res.passed = (tc === res.expected);
+          if (test.method === 'contains') {
+            let tc = elt.textContent.trim();
+            res.found = tc;
+            res.passed = (tc === res.expected);
+          } else if (test.method === 'style') {
+            let exp = res.expected.split('=');
+            res.passed = (elt.style[exp[0]] === exp[1]);
+          }
         }
       }
     }
