@@ -7,10 +7,11 @@ import { marked } from 'marked';
 import { config } from './config.js';
 import { gui } from './gui.js';
 import { lcms } from './lcms.js';
-import { EditorView, keymap, lineNumbers } from "@codemirror/view"
-import {defaultKeymap, history as cmhistory, historyKeymap} from "@codemirror/commands"
-import {syntaxHighlighting, defaultHighlightStyle} from "@codemirror/language"
-import {html} from "@codemirror/lang-html"
+import { EditorView, keymap, lineNumbers } from "@codemirror/view";
+import { defaultKeymap, history as cmhistory, historyKeymap } from "@codemirror/commands";
+import { syntaxHighlighting, defaultHighlightStyle } from "@codemirror/language";
+import { html } from "@codemirror/lang-html";
+import { aura } from '@uiw/codemirror-theme-aura';
 
 let _htmlEditor = null; // Codemirror editor
 let _skipLogin = false;   // Don't ask for login anymore
@@ -185,30 +186,13 @@ function updateHTML(content) {
 
 
 function initHTMLEditor() {
-  let defaultTheme = EditorView.theme({
+  let sizeTheme = EditorView.theme({
     ".cm-content, .cm-gutter": {minHeight: "200px"},
-    "&": {
-      color: "white",
-      backgroundColor: "#034"
-    },
-    ".cm-content": {
-      caretColor: "#0e9"
-    },
-    "&.cm-focused .cm-cursor": {
-      borderLeftColor: "#0e9"
-    },
-    "&.cm-focused .cm-selectionBackground, ::selection": {
-      backgroundColor: "#074"
-    },
-    ".cm-gutters": {
-      backgroundColor: "#045",
-      color: "#ddd",
-      border: "none"
-    }
-  }, {dark: true});
+  });
   _htmlEditor = new EditorView({
     extensions: [
-      defaultTheme,
+      sizeTheme,
+      aura,           // theme "aura"
       cmhistory(),
       keymap.of([...defaultKeymap, ...historyKeymap]),
       html(),
@@ -395,6 +379,8 @@ function runCheck(doc, test) {
     expected: test.value.trim(),
     found : 'Échec du test'
   };
+  // TODO hasClass, checked, disabled, hidden, greaterThan
+  // ignore witespaces msg.replace(/\s+/g, '') == msg1.replace(/\s+/g, '');
   if (test.method === 'contains' || test.method === 'style') {
     let elts = doc.querySelectorAll(test.selector);
     if (elts.length < 1) {
