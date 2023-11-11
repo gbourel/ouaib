@@ -10,7 +10,9 @@ import { lcms } from './lcms.js';
 import { EditorView, keymap, lineNumbers } from "@codemirror/view";
 import { defaultKeymap, history as cmhistory, historyKeymap } from "@codemirror/commands";
 import { syntaxHighlighting, defaultHighlightStyle } from "@codemirror/language";
-import { html } from "@codemirror/lang-html";
+import { html, htmlLanguage } from "@codemirror/lang-html";
+import { linter, lintKeymap, lintGutter } from '@codemirror/lint';
+import { HTMLHint } from 'htmlhint';
 import { aura } from '@uiw/codemirror-theme-aura';
 
 let _htmlEditor = null; // Codemirror editor
@@ -184,6 +186,55 @@ function updateHTML(content) {
   if (to) { to.style.display = 'none'; }
 }
 
+const htmlLintConfig = {
+  "tag-pair": true, // Tag must be paired.
+  "attr-no-duplication": true, // Elements cannot have duplicate attributes.
+  "tag-self-close": true, // Empty tags must be self closed.
+  "src-not-empty": true, // The src attribute of an img(script,link) must have a value.
+  "id-unique": true, // The value of id attributes must be unique.
+};
+function HTMLlinter() {
+    return (view) => {
+        let { state } = view;
+        let diagnostics = [];
+        for (let { from, to } of htmlLanguage.findRegions(state)) {
+          let content = state.sliceDoc(from, to);
+          let checkres = HTMLHint.verify(content, htmlLintConfig);
+          for(let check of checkres) {
+            diagnostics.push({
+              from: state.doc.line(check.line).from,
+              to: state.doc.line(check.line).to,
+              severity: check.type,
+              message: check.message
+            });
+          }
+        }
+        return diagnostics;
+    };
+}
+function mapPos(line, col, doc, offset) {
+    return doc.line(line + offset.line).from + col + (line == 1 ? offset.col - 1 : -1);
+}
+function translateDiagnostic(input, doc, offset) {
+    let start = mapPos(input.line, input.column, doc, offset);
+    let result = {
+        from: start,
+        to: input.endLine != null && input.endColumn != 1 ? mapPos(input.endLine, input.endColumn, doc, offset) : start,
+        message: input.message,
+        source: input.ruleId ? "htmlhint:" + input.ruleId : "htmlhint",
+        severity: input.severity == 1 ? "warning" : "error",
+    };
+    if (input.fix) {
+        let { range, text } = input.fix, from = range[0] + offset.pos - start, to = range[1] + offset.pos - start;
+        result.actions = [{
+                name: "fix",
+                apply(view, start) {
+                    view.dispatch({ changes: { from: start + from, to: start + to, insert: text }, scrollIntoView: true });
+                }
+            }];
+    }
+    return result;
+}
 
 function initHTMLEditor() {
   let sizeTheme = EditorView.theme({
@@ -198,6 +249,8 @@ function initHTMLEditor() {
       html(),
       syntaxHighlighting(defaultHighlightStyle),
       lineNumbers(),
+      lintGutter(),
+      linter(HTMLlinter()),
       EditorView.updateListener.of(v => {
         if (v && v.changes
             && (v.changes.inserted.length || v.changes.sections.length > 2)) {
@@ -244,7 +297,8 @@ function displayExercise() {
     if(_exercise.instruction) { // deprecated format
       instruction.innerHTML = marked.parse(_exercise.instruction);
     } else {
-      instruction.innerHTML = marked.parse(_exercise.intro);
+      let md = _exercise.intro;
+      instruction.innerHTML = marked.parse(md);
     }
     // TODO ?
     // renderMathInElement(instruction, {
@@ -413,11 +467,21 @@ async function checkResult() {
   let nbFailed = _tests.length;
   let table = document.importNode(document.querySelector('#results-table').content, true);
   let lineTemplate = document.querySelector('#result-line');
-  let hasHelp = false;
-  _tests.forEach(t => {
-    if (t && t.option && t.option !== 'hide') { hasHelp = true; }
-  });
-  table.querySelector('thead td.aide').style.display = hasHelp ? 'table-cell' : 'none';
+  let lints = HTMLHint.verify(_htmlEditor.state.doc.toString(), htmlLintConfig)
+  let syntaxErr = 0;
+  table.querySelector('thead td.aide').style.display = 'table-cell';
+  for (let err of lints) {
+    let line = document.importNode(lineTemplate.content, true);
+    let cells = line.querySelectorAll('td');
+    let tbody = table.querySelector('tbody');
+    let tds = line.querySelectorAll('td');
+    syntaxErr++;
+    line.querySelector('tr').classList.add('ko');
+    tds[0].textContent = 'Syntaxe HTML correcte.';
+    tds[1].textContent = err.message;
+    tds[2].textContent = '';
+    tbody.append(line);
+  }
   if(_tests.length > 0) {
     nbFailed = 0;
     for (let i = 0 ; i < _tests.length; i++) {
@@ -430,12 +494,8 @@ async function checkResult() {
         // cells[0].textContent = _tests[i].method;
         cells[0].textContent = result.expected;
         cells[1].textContent = result.found;
-        if(hasHelp) {
-          cells[2].textContent = _tests[i].option;
-          cells[2].style.display = 'table-cell';
-        } else {
-          cells[2].style.display = 'none';
-        }
+        cells[2].textContent = _tests[i].option;
+        cells[2].style.display = 'table-cell';
       }
       if(result.passed) {
         line && line.querySelector('tr').classList.add('ok');
@@ -447,7 +507,7 @@ async function checkResult() {
         tbody.append(line);
       }
     }
-    if (nbFailed === 0) {
+    if (syntaxErr === 0 && nbFailed === 0) {
       // TODO
       // const answer = sha256('TODO');
       // if(parent) {
@@ -470,12 +530,15 @@ async function checkResult() {
   }
   const elt = document.createElement('div');
   let content = '';
-  if(nbFailed > 0) {
+  if(nbFailed > 0 || syntaxErr > 0) {
     elt.classList.add('failed');
     content = `Résultat : ${_tests.length} test`;
     if(_tests.length > 1) { content += 's'; }
     content += `, ${nbFailed} échec`
     if(nbFailed > 1) { content += 's'; }
+    if(syntaxErr > 0) {
+      content += `, ${syntaxErr} erreur${syntaxErr > 1 ? 's' : ''} de syntaxe.`;
+    }
   } else {
     elt.classList.add('success');
     if(_tests.length > 1) {
@@ -485,9 +548,7 @@ async function checkResult() {
     }
   }
   elt.innerHTML += `<div class="result">${content}</div>`;
-  if(_tests.find(t => t.option !== 'hide')){
-    elt.appendChild(table);
-  }
+  elt.appendChild(table);
   let toelt = document.getElementById('testsOutput')
   toelt.innerHTML = '';
   toelt.appendChild(elt);
