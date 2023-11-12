@@ -10,6 +10,24 @@ export const gui = {
   },
   hideHelp: () => { gui.showHelp(false); },
 
+  opentab: (evt) => {
+    let target = evt.target;
+    if (target && target.id) {
+      let tabname = target.id;
+      target.classList
+      for (let elt of document.querySelectorAll('#main .tabs > span')) {
+        elt.classList.remove('active');
+      }
+      target.classList.add('active');
+
+      let contentId = tabname.substring(4) + 'src';
+      for (let elt of document.querySelectorAll('#main .tabcontent > div')) {
+        elt.style.display = 'none';
+      }
+      document.getElementById(contentId).style.display = 'block';
+    }
+  },
+
   // Callback on exercise achievement
   displaySuccess: () => {
     const successOverlay = document.getElementById('overlay');

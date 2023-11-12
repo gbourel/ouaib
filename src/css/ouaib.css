@@ -170,6 +170,35 @@ header {
 }
 
 /* Src / Output */
+.tabs {
+  display: flex;
+  background: #101020E0;
+}
+.tabs span {
+  display: flex;
+  cursor: pointer;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1px solid #777;
+  border-bottom: none;
+  color: #777;
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+}
+.tabs span.active {
+  color: #CCC;
+  border-color: #CCC;
+}
+.tabs span img {
+  height: 16px;
+  filter: grayscale(80%);
+}
+.tabs span.active img {
+  filter: unset;
+}
+#csssrc {
+  display: none;
+}
 #output {
   min-height: 6rem;
 }

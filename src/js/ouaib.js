@@ -1,4 +1,4 @@
-const VERSION = 'v0.1.1';
+const VERSION = 'v0.2.0';
 document.getElementById('version').textContent = VERSION;
 
 import '../css/ouaib.css';
@@ -13,11 +13,13 @@ import { EditorView, keymap, lineNumbers } from "@codemirror/view";
 import { defaultKeymap, history as cmhistory, historyKeymap } from "@codemirror/commands";
 import { syntaxHighlighting, defaultHighlightStyle } from "@codemirror/language";
 import { html, htmlLanguage } from "@codemirror/lang-html";
+import { css, cssLanguage } from "@codemirror/lang-css";
 import { linter, lintKeymap, lintGutter } from '@codemirror/lint';
 import { HTMLHint } from 'htmlhint';
 import { aura } from '@uiw/codemirror-theme-aura';
 
-let _htmlEditor = null; // Codemirror editor
+let _htmlEditor = null; // Codemirror editor for html
+let _cssEditor = null;  // Codemirror editor for css
 let _skipLogin = false;   // Don't ask for login anymore
 let _nsix = false;        // If embedded in a nsix challenge
 
@@ -105,7 +107,6 @@ let delta_x = 0
 
 function updateListTx() {
   if(main === null) { return; }
-  console.info(main.attr('transform'));
   main.animate({
     transform: `t${-delta_x * MARKER_W}`
   }, 1000, mina.easeinout, () => {
@@ -173,17 +174,27 @@ function displayExercisesNav() {
   }
 }
 
-let updateDelay = null;
+let updateTimeout = null;
 function updateHTML(content) {
+  sessionStorage.setItem(getHTMLKey(), content);
+  refreshPreview();
+}
+function updateCSS(content) {
+  sessionStorage.setItem(getCSSKey(), content);
+  refreshPreview();
+}
+function refreshPreview() {
   let outputFrame = document.getElementById("output");
   if (outputFrame) {
     let outputDoc =
       outputFrame.contentDocument || outputFrame.contentWindow.document;
+    let htmlContent = _htmlEditor.state.doc.toString();
+    let cssContent = _cssEditor.state.doc.toString();
+    let content = htmlContent + `<style>${cssContent}</style>`;
     outputDoc.open();
     outputDoc.write(content);
     outputDoc.close();
   }
-  localStorage.setItem(getHTMLKey(), _htmlEditor.state.doc.toString());
   let to = document.getElementById('testsOutput');
   if (to) { to.style.display = 'none'; }
 }
@@ -256,14 +267,42 @@ function initHTMLEditor() {
       EditorView.updateListener.of(v => {
         if (v && v.changes
             && (v.changes.inserted.length || v.changes.sections.length > 2)) {
-          if (updateDelay) { clearTimeout(updateDelay); }
-          updateDelay = setTimeout(() => {
+          if (updateTimeout) { clearTimeout(updateTimeout); }
+          updateTimeout = setTimeout(() => {
             updateHTML(v.state.doc.toString());
           }, 300);
         }
       })
     ],
     parent: document.getElementById('htmlsrc')
+  });
+}
+function initCSSEditor() {
+  let sizeTheme = EditorView.theme({
+    ".cm-content, .cm-gutter": {minHeight: "200px"},
+  });
+  _cssEditor = new EditorView({
+    extensions: [
+      sizeTheme,
+      aura,           // theme "aura"
+      cmhistory(),
+      keymap.of([...defaultKeymap, ...historyKeymap]),
+      css(),
+      syntaxHighlighting(defaultHighlightStyle),
+      lineNumbers(),
+      lintGutter(),
+      linter(HTMLlinter()),
+      EditorView.updateListener.of(v => {
+        if (v && v.changes
+            && (v.changes.inserted.length || v.changes.sections.length > 2)) {
+          if (updateTimeout) { clearTimeout(updateTimeout); }
+          updateTimeout = setTimeout(() => {
+            updateCSS(v.state.doc.toString());
+          }, 300);
+        }
+      })
+    ],
+    parent: document.getElementById('csssrc')
   });
 }
 
@@ -285,10 +324,15 @@ function displayExercise() {
   _exercise = _exercises[_exerciseIdx];
 
   if (_exercise) {
-    let prog = ' ';  // one space to force reload
-    let lastprog = localStorage.getItem(getHTMLKey());
+    let proghtml = ' ';  // one space to force reload
+    let progcss = ' ';  // one space to force reload
+    let lastproghtml = sessionStorage.getItem(getHTMLKey());
+    let lastprogcss = sessionStorage.getItem(getCSSKey());
     if(!_htmlEditor) {
       initHTMLEditor();
+    }
+    if(!_cssEditor) {
+      initCSSEditor();
     }
     if(_exercise.tests) { // deprecated format
       loadTestsCSV(_exercise.tests);
@@ -315,7 +359,13 @@ function displayExercise() {
     //   throwOnError : false
     // });
     if(_exercise.proposal && _exercise.proposal.length > 0) {
-      prog = _exercise.proposal;
+      proghtml = _exercise.proposal;
+      progcss = '';
+      let idx = proghtml.indexOf('_CSS_');
+      if (idx > -1) {
+        proghtml = _exercise.proposal.substring(0, idx);
+        progcss = _exercise.proposal.substring(idx + 6);
+      }
       document.getElementById('resetbtn').classList.remove('hidden');
     } else {
       document.getElementById('resetbtn').classList.add('hidden');
@@ -336,30 +386,51 @@ function displayExercise() {
       helpBtn.classList.add('hidden');
     }
     let result = _user?.results?.find(r => r.activity_id == _exercise.id);
-    if(lastprog && lastprog.length) {
-      prog = lastprog;
+    if(lastproghtml && lastproghtml.length) {
+      proghtml = lastproghtml;
     } else {
       if (result) {
         try {
           let content = JSON.parse(result.response);
           if (content.html) {
-            prog = content.html;
+            proghtml = content.html;
           } else {
             content = JSON.parse(content);
-            prog = content.html;
+            proghtml = content.html;
           }
         } catch(error) {
-          prog = result.response;
+          proghtml = result.response;
+        }
+      }
+    }
+    if(lastprogcss && lastprogcss.length) {
+      progcss = lastprogcss;
+    } else {
+      if (result) {
+        try {
+          let content = JSON.parse(result.response);
+          if (content.css) {
+            progcss = content.css;
+          } else {
+            content = JSON.parse(content);
+            progcss = content.css;
+          }
+        } catch(error) {
+          console.error('Error reading CSS content.');
         }
       }
     }
     _htmlEditor.dispatch({
-      changes: {from: 0, to: _htmlEditor.state.doc.length, insert: prog}
+      changes: {from: 0, to: _htmlEditor.state.doc.length, insert: proghtml}
+    });
+    _cssEditor.dispatch({
+      changes: {from: 0, to: _cssEditor.state.doc.length, insert: progcss}
     });
     // register exercise start
     // TODO lcms
   } else {
     if(!_htmlEditor) { initHTMLEditor(); }
+    if(!_cssEditor) { initCSSEditor(); }
     instruction.innerHTML = marked.parse('**Bravo !** Tous les exercices de ce niveau sont terminés !');
     _htmlEditor.dispatch({changes: {from: 0, to: _htmlEditor.state.doc.length, insert: '' }});
     updateHTML('');
@@ -407,6 +478,12 @@ function loadExercises(level, pushHistory){
   } else {
     _exerciseIdx = 0;
   }
+  let tabElt = document.querySelector('#main .tabs');
+  if (level === 1) {  // no css tab for first journey
+    tabElt.style.display = 'none';
+  } else {
+    tabElt.style.display = 'flex';
+  }
   gui.hideLoading();
   if(pushHistory) {
     history.pushState({'level': level}, '', `/?parcours=${level}`);
@@ -418,12 +495,26 @@ function loadExercises(level, pushHistory){
 function resetHTML(){
   if(_exercise && _exercise.proposal && _exercise.proposal.length > 0) {
     if(_htmlEditor) {
+      let htmlcontent = _exercise.proposal;
+      let csscontent = '';
+      let idx = htmlcontent.indexOf('_CSS_');
+      if (idx > -1) {
+        htmlcontent = _exercise.proposal.substring(0, idx);
+        csscontent = _exercise.proposal.substring(idx + 6);
+      }
       // _htmlEditor.setValue(_exercise.proposal);
       _htmlEditor.dispatch({
         changes: {
           from: 0,
           to: _htmlEditor.state.doc.length,
-          insert: _exercise.proposal
+          insert: htmlcontent
+        }
+      });
+      _cssEditor.dispatch({
+        changes: {
+          from: 0,
+          to: _cssEditor.state.doc.length,
+          insert: csscontent
         }
       });
     }
@@ -431,7 +522,6 @@ function resetHTML(){
 }
 
 function runCheck(doc, test) {
-  console.info(test);
   let res = {
     passed: false,
     expected: test.value.trim(),
@@ -453,8 +543,9 @@ function runCheck(doc, test) {
             res.passed = (tc === res.expected);
           } else if (test.method === 'style') {
             let exp = res.expected.split('=');
-            res.found = elt.style[exp[0]];
-            res.passed = (elt.style[exp[0]] === exp[1]);
+            let style = getComputedStyle(elt);
+            res.found = style[exp[0]];
+            res.passed = (style[exp[0]] === exp[1].replaceAll('"', ''));
           } else if (test.method === 'attribute') {
             let exp = res.expected.split('=');
             if (elt.attributes[exp[0]]) {
@@ -601,7 +692,17 @@ async function loadResults() {
 }
 
 function getHTMLKey(){
-  let key = 'html'
+  let key = 'html';
+  if(_user) {
+    key += '_' + _user.externalId;
+  }
+  if(_exercise) {
+    key += '_' + _exercise.id;
+  }
+  return key;
+}
+function getCSSKey(){
+  let key = 'css';
   if(_user) {
     key += '_' + _user.externalId;
   }
@@ -665,13 +766,16 @@ async function init(){
   document.getElementById('login2').addEventListener('click', login);
   // document.getElementById('skip-login-btn').addEventListener('click', registerSkipLogin);
   document.getElementById('level-1').addEventListener('click', () => loadExercises(1, true));
-  // document.getElementById('level-2').addEventListener('click', () => loadExercises(2, true));
+  document.getElementById('level-2').addEventListener('click', () => loadExercises(2, true));
   // document.getElementById('level-3').addEventListener('click', () => loadExercises(3, true));
   // document.getElementById('level-4').addEventListener('click', () => loadExercises(4, true));
   document.getElementById('profileMenuBtn').addEventListener('click', gui.toggleMenu);
 
   document.getElementById('help').addEventListener('click', gui.showHelp);
   document.getElementById('help-panel').addEventListener('click', gui.hideHelp);
+
+  document.getElementById('tab-html').addEventListener('click', gui.opentab);
+  document.getElementById('tab-css').addEventListener('click', gui.opentab);
 
   addEventListener('popstate', evt => {
     if(evt.state && evt.state.level) {
