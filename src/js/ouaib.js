@@ -437,9 +437,10 @@ function runCheck(doc, test) {
     expected: test.value.trim(),
     found : 'Échec du test'
   };
+  const methods = ['contains', 'style', 'attribute'];
   // TODO hasClass, checked, disabled, hidden, greaterThan
   // ignore witespaces msg.replace(/\s+/g, '') == msg1.replace(/\s+/g, '');
-  if (test.method === 'contains' || test.method === 'style') {
+  if (methods.includes(test.method)) {
     let elts = doc.querySelectorAll(test.selector);
     if (elts.length < 1) {
       res.found = `Élément non trouvé : ${test.selector}`;
@@ -452,7 +453,14 @@ function runCheck(doc, test) {
             res.passed = (tc === res.expected);
           } else if (test.method === 'style') {
             let exp = res.expected.split('=');
+            res.found = elt.style[exp[0]];
             res.passed = (elt.style[exp[0]] === exp[1]);
+          } else if (test.method === 'attribute') {
+            let exp = res.expected.split('=');
+            if (elt.attributes[exp[0]]) {
+              res.found = elt.attributes[exp[0]].value;
+              res.passed = (elt.attributes[exp[0]].value === exp[1].replaceAll('"', ''));
+            }
           }
         }
       }
