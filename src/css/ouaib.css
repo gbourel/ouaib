@@ -27,6 +27,11 @@
 .color-pink-3 { color: #9A0D50 }
 .color-pink-4 { color: #7A003A }
 
+.pull-right {
+  float: right;
+  overflow: auto;
+}
+
 code {
   color: #D4F3D4;
   font-weight: bold;
@@ -266,6 +271,14 @@ iframe {
 }
 #instruction a:visited {
   color: #38abdf;
+}
+#instruction:after, .clearfix:after {
+  visibility: hidden;
+  display: block;
+  font-size: 0;
+  content: " ";
+  clear: both;
+  height: 0;
 }
 
 /* Background */

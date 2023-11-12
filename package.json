@@ -22,6 +22,8 @@
     "@uiw/codemirror-theme-aura": "^4.21.20",
     "htmlhint": "^1.1.4",
     "marked": "^9.1.5",
+    "marked-base-url": "^1.1.1",
+    "marked-pandoc": "^0.0.1",
     "snapsvg": "^0.5.1"
   },
   "devDependencies": {
