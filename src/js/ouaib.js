@@ -1,4 +1,4 @@
-const VERSION = 'v0.2.0';
+const VERSION = 'v0.2.1';
 document.getElementById('version').textContent = VERSION;
 
 import '../css/ouaib.css';
@@ -621,7 +621,8 @@ async function checkResult() {
       // }
 
       let response = {
-        'html': _htmlEditor.state.doc.toString()
+        'html': _htmlEditor.state.doc.toString(),
+        'css': _cssEditor.state.doc.toString()
       };
       lcms.registerSuccess(_exercise.id, JSON.stringify(response), (data) => {
         config.log('Userinfo:', JSON.stringify(data));
