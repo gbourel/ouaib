@@ -196,6 +196,9 @@ header {
 .tabs span.active img {
   filter: unset;
 }
+.cm-editor {
+  max-height: 800px;
+}
 #csssrc {
   display: none;
 }
