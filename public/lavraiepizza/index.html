@@ -1,0 +1,97 @@
+<html>
+
+    <body>
+	
+	<h1>la vraie pizza</h1>
+	
+	<p> Repas sur place incroyables et livraisons à domicile parfaites  </p>
+	<h2>Menu<h2>
+	
+	<ul> 
+	  <li>Reine<span>tomate, jambon, champignons, fromage<span></li>
+	  <li>Chevre<span>tomate, chevre, miel, fromage, olives<span></li>
+	  <li>Creole <span>tomate, saucisse, viande hachée, oignons, fromage, olives<span></li>
+	</ul>
+	
+	<img src="pizzaa miel.jpg" width="400"/>
+     
+	 <h2>Les horaires</h2>
+	 
+	 <table>
+	   <tr>
+		<td>Lundi</td>
+		<td>Mardi</td>
+		<td>Mercredi</td>
+		<td>Jeudi</td>
+		<td>Vendredi</td>
+		<td>Samedi</td>
+		<td>Dimanche</td>
+	  </tr>
+	  <tr>
+        <td>10h-13h<br> 19h-00h</td>
+		<td>10h-13h<br> 19h-00h</td>
+		<td>Fermé <br> 19h-00h</td>
+		<td>10h-13h <br>19h-00h</td>
+		<td>Fermé <br>Fermé</td>
+		<td>10h-14h<br> 19h-01h</td>
+		<td>10h-14h <br>19h-01h</td>
+	  </tr>
+	  
+	</table>
+
+	<style>
+	h1 { 
+	   color: fuchsia;
+	   text-align: center;
+       
+	   }
+	  body {
+	    background-color: pink;
+     }
+	 ul li span {
+	 
+	 margin-left: 20px;
+     font-style: italic;
+	 }
+    table {
+	 background:white;
+	 border-collapse: collapse;
+	 }
+    td{
+	 border: 2px solid fuchsia ;
+	 padding: 8px
+	 }
+	 img{
+	 float:right;
+	 }
+	
+	 </style>
+	 <h3> COMMANDER</h2>
+	 <form action="/ma-page-de-traitement" method="post">
+  <ul>
+    <li>
+      <label for="name">Nom&nbsp;:</label>
+      <input type="text" id="name" name="user_name" />
+    </li>
+    <li>
+      <label for="mail">E-mail&nbsp;:</label>
+      <input type="email" id="mail" name="user_mail" />
+    </li>
+	<li>
+      <label for="msg">Téléphone&nbsp;:</label>
+      <textarea id="msg" name="user_message"></textarea>
+    </li>
+	<li>
+      <label for="msg">Adresse&nbsp;:</label>
+      <textarea id="msg" name="user_message"></textarea>
+    </li>
+    <li>
+      <label for="msg">Message&nbsp;:</label>
+      <textarea id="msg" name="user_message"></textarea>
+    </li>
+  </ul>
+  <button type="submit">Envoyer la commande</button>
+</form>
+    </body>
+
+</html>
