@@ -1,4 +1,4 @@
-const VERSION = 'v0.2.2';
+const VERSION = 'v0.3.0';
 document.getElementById('version').textContent = VERSION;
 
 import '../css/ouaib.css';
@@ -14,12 +14,14 @@ import { defaultKeymap, history as cmhistory, historyKeymap } from "@codemirror/
 import { syntaxHighlighting, defaultHighlightStyle } from "@codemirror/language";
 import { html, htmlLanguage } from "@codemirror/lang-html";
 import { css, cssLanguage } from "@codemirror/lang-css";
+import { javascript, javascriptLanguage } from "@codemirror/lang-javascript";
 import { linter, lintKeymap, lintGutter } from '@codemirror/lint';
 import { HTMLHint } from 'htmlhint';
 import { aura } from '@uiw/codemirror-theme-aura';
 
-let _htmlEditor = null; // Codemirror editor for html
-let _cssEditor = null;  // Codemirror editor for css
+let _htmlEditor = null;   // Codemirror editor for html
+let _cssEditor = null;    // Codemirror editor for css
+let _jsEditor = null;     // Codemirror editor for js
 let _skipLogin = false;   // Don't ask for login anymore
 let _nsix = false;        // If embedded in a nsix challenge
 
@@ -183,14 +185,19 @@ function updateCSS(content) {
   sessionStorage.setItem(getCSSKey(), content);
   refreshPreview();
 }
+function updateJS(content) {
+  sessionStorage.setItem(getJSKey(), content);
+  refreshPreview();
+}
 function refreshPreview() {
   let outputFrame = document.getElementById("output");
   if (outputFrame) {
-    let outputDoc =
+    const outputDoc =
       outputFrame.contentDocument || outputFrame.contentWindow.document;
-    let htmlContent = _htmlEditor.state.doc.toString();
-    let cssContent = _cssEditor.state.doc.toString();
-    let content = htmlContent + `<style>${cssContent}</style>`;
+    const htmlContent = _htmlEditor.state.doc.toString();
+    const cssContent = _cssEditor.state.doc.toString();
+    const jsContent = _jsEditor.state.doc.toString();
+    const content = `<!DOCTYPE html><head><style>${cssContent}</style></head><body>${htmlContent}<script type="module">${jsContent.trim()}</script></body></html>`;
     outputDoc.open();
     outputDoc.write(content);
     outputDoc.close();
@@ -305,6 +312,34 @@ function initCSSEditor() {
     parent: document.getElementById('csssrc')
   });
 }
+function initJSEditor() {
+  let sizeTheme = EditorView.theme({
+    ".cm-content, .cm-gutter": {minHeight: "200px"},
+  });
+  _jsEditor = new EditorView({
+    extensions: [
+      sizeTheme,
+      aura,           // theme "aura"
+      cmhistory(),
+      keymap.of([...defaultKeymap, ...historyKeymap]),
+      javascript(),
+      syntaxHighlighting(defaultHighlightStyle),
+      lineNumbers(),
+      lintGutter(),
+      linter(HTMLlinter()),
+      EditorView.updateListener.of(v => {
+        if (v && v.changes
+            && (v.changes.inserted.length || v.changes.sections.length > 2)) {
+          if (updateTimeout) { clearTimeout(updateTimeout); }
+          updateTimeout = setTimeout(() => {
+            updateJS(v.state.doc.toString());
+          }, 300);
+        }
+      })
+    ],
+    parent: document.getElementById('jssrc')
+  });
+}
 
 /**
  * Affiche l'exercice en cours (_exercises[_exerciseIdx]).
@@ -325,14 +360,19 @@ function displayExercise() {
 
   if (_exercise) {
     let proghtml = ' ';  // one space to force reload
-    let progcss = ' ';  // one space to force reload
+    let progcss = ' ';   // one space to force reload
+    let progjs = ' ';    // one space to force reload
     let lastproghtml = sessionStorage.getItem(getHTMLKey());
     let lastprogcss = sessionStorage.getItem(getCSSKey());
+    let lastprogjs = sessionStorage.getItem(getJSKey());
     if(!_htmlEditor) {
       initHTMLEditor();
     }
     if(!_cssEditor) {
       initCSSEditor();
+    }
+    if(!_jsEditor) {
+      initJSEditor();
     }
     if(_exercise.tests) { // deprecated format
       loadTestsCSV(_exercise.tests);
@@ -361,10 +401,24 @@ function displayExercise() {
     if(_exercise.proposal && _exercise.proposal.length > 0) {
       proghtml = _exercise.proposal;
       progcss = '';
-      let idx = proghtml.indexOf('_CSS_');
-      if (idx > -1) {
-        proghtml = _exercise.proposal.substring(0, idx);
-        progcss = _exercise.proposal.substring(idx + 6);
+      progjs = '';
+      let cssidx = proghtml.indexOf('_CSS_');
+      let jsidx = proghtml.indexOf('_JS_');
+      if (cssidx > -1 || jsidx > -1) {
+        if (cssidx === -1) {
+          proghtml = _exercise.proposal.substring(0, jsidx);
+          progcss = ' ';
+          progjs = _exercise.proposal.substring(jsidx + 5);
+        } else {
+          proghtml = _exercise.proposal.substring(0, cssidx);
+          if (jsidx === -1) {
+            progcss = _exercise.proposal.substring(cssidx + 6);
+            progjs = ' ';
+          } else {
+            progcss = _exercise.proposal.substring(cssidx + 6, jsidx);
+            progjs = _exercise.proposal.substring(jsidx + 5);
+          }
+        }
       }
       document.getElementById('resetbtn').classList.remove('hidden');
     } else {
@@ -420,17 +474,38 @@ function displayExercise() {
         }
       }
     }
+    if(lastprogjs && lastprogjs.length) {
+      progjs = lastprogjs;
+    } else {
+      if (result) {
+        try {
+          let content = JSON.parse(result.response);
+          if (content.js) {
+            progjs = content.js;
+          } else {
+            content = JSON.parse(content);
+            progjs = content.js;
+          }
+        } catch(error) {
+          console.error('Error reading JS content.');
+        }
+      }
+    }
     _htmlEditor.dispatch({
       changes: {from: 0, to: _htmlEditor.state.doc.length, insert: proghtml}
     });
     _cssEditor.dispatch({
       changes: {from: 0, to: _cssEditor.state.doc.length, insert: progcss}
     });
+    _jsEditor.dispatch({
+      changes: {from: 0, to: _jsEditor.state.doc.length, insert: progjs}
+    });
     // register exercise start
     // TODO lcms
   } else {
     if(!_htmlEditor) { initHTMLEditor(); }
     if(!_cssEditor) { initCSSEditor(); }
+    if(!_jsEditor) { initJSEditor(); }
     instruction.innerHTML = marked.parse('**Bravo !** Tous les exercices de ce niveau sont terminés !');
     _htmlEditor.dispatch({changes: {from: 0, to: _htmlEditor.state.doc.length, insert: '' }});
     updateHTML('');
@@ -478,10 +553,16 @@ function loadExercises(level, pushHistory){
   } else {
     _exerciseIdx = 0;
   }
-  let tabElt = document.querySelector('#main .tabs');
-  if (level === 1) {  // no css tab for first journey
+  const tabElt = document.querySelector('#main .tabs');
+  if (level === 1) {  // no tab for first journey
     tabElt.style.display = 'none';
+  } else if (level === 2) {  // no js tab for second journey
+    const jstab = document.querySelector('#tab-js');
+    jstab.style.display = 'none';
+    tabElt.style.display = 'flex';
   } else {
+    const jstab = document.querySelector('#tab-js');
+    jstab.style.display = 'flex';
     tabElt.style.display = 'flex';
   }
   gui.hideLoading();
@@ -497,10 +578,24 @@ function resetHTML(){
     if(_htmlEditor) {
       let htmlcontent = _exercise.proposal;
       let csscontent = '';
-      let idx = htmlcontent.indexOf('_CSS_');
-      if (idx > -1) {
-        htmlcontent = _exercise.proposal.substring(0, idx);
-        csscontent = _exercise.proposal.substring(idx + 6);
+      let jscontent = '';
+      let cssidx = htmlcontent.indexOf('_CSS_');
+      let jsidx = htmlcontent.indexOf('_JS_');
+      if (cssidx > -1 || jsidx > -1) {
+        if (cssidx === -1) {
+          htmlcontent = _exercise.proposal.substring(0, jsidx);
+          csscontent = ' ';
+          jscontent = _exercise.proposal.substring(jsidx + 5);
+        } else {
+          htmlcontent = _exercise.proposal.substring(0, cssidx);
+          if (jsidx === -1) {
+            csscontent = _exercise.proposal.substring(cssidx + 6);
+            jscontent = ' ';
+          } else {
+            csscontent = _exercise.proposal.substring(cssidx + 6, jsidx);
+            jscontent = _exercise.proposal.substring(jsidx + 5);
+          }
+        }
       }
       // _htmlEditor.setValue(_exercise.proposal);
       _htmlEditor.dispatch({
@@ -517,6 +612,13 @@ function resetHTML(){
           insert: csscontent
         }
       });
+      _jsEditor.dispatch({
+        changes: {
+          from: 0,
+          to: _jsEditor.state.doc.length,
+          insert: jscontent
+        }
+      });
     }
   }
 }
@@ -527,7 +629,7 @@ function runCheck(doc, test) {
     expected: test.value.trim(),
     found : 'Échec du test'
   };
-  const methods = ['contains', 'style', 'attribute'];
+  const methods = ['contains', 'style', 'attribute', 'exists'];
   // TODO hasClass, checked, disabled, hidden, greaterThan
   // ignore witespaces msg.replace(/\s+/g, '') == msg1.replace(/\s+/g, '');
   if (methods.includes(test.method)) {
@@ -537,7 +639,11 @@ function runCheck(doc, test) {
     } else {
       for (let elt of elts) {
         if (elt && !res.passed) {
-          if (test.method === 'contains') {
+          if (test.method === 'exists') {
+            res.found = 'existe';
+            res.expected = 'existe';
+            res.passed = true;
+          } else if (test.method === 'contains') {
             let tc = elt.textContent.trim();
             res.found = tc;
             res.passed = (tc === res.expected);
@@ -683,7 +789,6 @@ async function loadResults() {
     });
     if (res && res.status === 200) {
       const results = await res.json()
-      config.log('Results found', results);
       return results;
     }
     console.error('Unable to fetch results', res);
@@ -704,6 +809,16 @@ function getHTMLKey(){
 }
 function getCSSKey(){
   let key = 'css';
+  if(_user) {
+    key += '_' + _user.externalId;
+  }
+  if(_exercise) {
+    key += '_' + _exercise.id;
+  }
+  return key;
+}
+function getJSKey(){
+  let key = 'js';
   if(_user) {
     key += '_' + _user.externalId;
   }
@@ -768,7 +883,7 @@ async function init(){
   // document.getElementById('skip-login-btn').addEventListener('click', registerSkipLogin);
   document.getElementById('level-1').addEventListener('click', () => loadExercises(1, true));
   document.getElementById('level-2').addEventListener('click', () => loadExercises(2, true));
-  // document.getElementById('level-3').addEventListener('click', () => loadExercises(3, true));
+  document.getElementById('level-3').addEventListener('click', () => loadExercises(3, true));
   // document.getElementById('level-4').addEventListener('click', () => loadExercises(4, true));
   document.getElementById('profileMenuBtn').addEventListener('click', gui.toggleMenu);
 
@@ -777,6 +892,7 @@ async function init(){
 
   document.getElementById('tab-html').addEventListener('click', gui.opentab);
   document.getElementById('tab-css').addEventListener('click', gui.opentab);
+  document.getElementById('tab-js').addEventListener('click', gui.opentab);
 
   addEventListener('popstate', evt => {
     if(evt.state && evt.state.level) {
@@ -787,9 +903,6 @@ async function init(){
   });
 
   lcms.loadUser(async (user) => {
-    // TODO session cache
-    config.log('User loaded', user);
-
     if(user && !user.err) {
       _user = user;
       document.getElementById('username').innerHTML = user.firstName || 'Moi';

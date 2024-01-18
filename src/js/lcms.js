@@ -59,7 +59,7 @@ export const lcms = {
     let jids = [
       `${config.lcmsUrl}/parcours/code/QBWOHF`, // HTML
       `${config.lcmsUrl}/parcours/code/SICKKR`, // CSS
-      // `${config.lcmsUrl}/parcours/code/TODO`, // ?
+      `${config.lcmsUrl}/parcours/code/AXSUFL`, // Web
       // `${config.lcmsUrl}/parcours/code/TODO`  // ?
     ];
     for (let jid of jids) {

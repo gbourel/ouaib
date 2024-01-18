@@ -202,6 +202,9 @@ header {
 #csssrc {
   display: none;
 }
+#jssrc {
+  display: none;
+}
 #output {
   min-height: 6rem;
 }
