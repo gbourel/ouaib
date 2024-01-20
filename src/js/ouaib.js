@@ -1,4 +1,4 @@
-const VERSION = 'v0.3.0';
+const VERSION = 'v0.3.1';
 document.getElementById('version').textContent = VERSION;
 
 import '../css/ouaib.css';
@@ -6,6 +6,7 @@ import '../css/ouaib.css';
 import { marked } from 'marked';
 import { baseUrl } from "marked-base-url";
 import { pandoc } from "marked-pandoc";
+import { newtab } from "marked-newtab";
 import { config } from './config.js';
 import { gui } from './gui.js';
 import { lcms } from './lcms.js';
@@ -382,6 +383,7 @@ function displayExercise() {
     // title.innerHTML = _exercise.title || 'Entrainement';
     marked.use(baseUrl(`https://filedn.nsix.fr/act/${_exercise.id}/`));
     marked.use(pandoc);
+    marked.use(newtab);
     if(_exercise.instruction) { // deprecated format
       instruction.innerHTML = marked.parse(_exercise.instruction);
     } else {
