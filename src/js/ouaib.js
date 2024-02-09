@@ -100,8 +100,12 @@ function displayMenu() {
   instruction.innerHTML = '';
   progress.classList.add('hidden');
   main.classList.add('hidden');
-  menu.style.display = 'block';
-  menu.style.transform = 'translate(0, 0)';
+  if (_nsix) {
+    menu.style.display = 'none';
+  } else {
+    menu.style.display = 'block';
+    menu.style.transform = 'translate(0, 0)';
+  }
 }
 
 let main = null;
@@ -198,7 +202,7 @@ function refreshPreview() {
     const htmlContent = _htmlEditor.state.doc.toString();
     const cssContent = _cssEditor.state.doc.toString();
     const jsContent = _jsEditor.state.doc.toString();
-    const content = `<!DOCTYPE html><head><style>${cssContent}</style></head><body>${htmlContent}<script type="module">${jsContent.trim()}</script></body></html>`;
+    const content = `<!DOCTYPE html><head><meta charset="ascii"><style>${cssContent}</style></head><body>${htmlContent}<script type="module">${jsContent.trim()}</script></body></html>`;
     outputDoc.open();
     outputDoc.write(content);
     outputDoc.close();
@@ -345,7 +349,8 @@ function initJSEditor() {
 /**
  * Affiche l'exercice en cours (_exercises[_exerciseIdx]).
  */
-function displayExercise() {
+function displayExercise(act) {
+  console.info(act);
   const instruction = document.getElementById('instruction');
   const main = document.getElementById('main');
   const menu = document.getElementById('mainmenu');
@@ -357,7 +362,7 @@ function displayExercise() {
   help.classList.remove('hidden');
   output.classList.add('md:w-1/2');
 
-  _exercise = _exercises[_exerciseIdx];
+  _exercise = act || _exercises[_exerciseIdx];
 
   if (_exercise) {
     let proghtml = ' ';  // one space to force reload
@@ -869,7 +874,11 @@ function updateAchievements() {
 }
 
 async function init(){
-  _journeys = await lcms.fetchJourneys();
+  if(config.activity) {
+    console.info("Specific activity", config.activity);
+  } else {
+    _journeys = await lcms.fetchJourneys();
+  }
 
   marked.setOptions({
     gfm: true
@@ -909,16 +918,21 @@ async function init(){
       _user = user;
       document.getElementById('username').innerHTML = user.firstName || 'Moi';
       document.getElementById('profile-menu').classList.remove('hidden');
-      _user.results = await loadResults();
-      updateAchievements();
+      if (!config.activity) {
+        _user.results = await loadResults();
+        updateAchievements();
+      }
     } else {
       document.getElementById('login').classList.remove('hidden');
       _user = null;
     }
 
     let loaded = false;
-    let lvl = config.parcours;
-    if(lvl >= 0) {
+    if (config.activity) {
+      let act = await lcms.fetchActivity(config.activity);
+      displayExercise(act);
+      loaded = true;
+    } else if(config.parcours >= 0) {
       loadExercises(lvl);
       loaded = true;
     }

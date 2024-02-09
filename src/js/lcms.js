@@ -70,6 +70,20 @@ export const lcms = {
     }
     return res
   },
+  fetchActivity: (actId) => {
+    const token = lcms.getAuthToken();
+    return new Promise((resolve, reject) => {
+      const req = new Request(`${config.lcmsUrl}/activity/${actId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        }
+      });
+      fetch(req).then(res => { return res.json(); })
+      .then(act => {
+        resolve(act);
+      });
+    });
+  },
   // Send succes to lcms api
   registerSuccess: (activityId, content, cb) => {
     if (config.preview) {

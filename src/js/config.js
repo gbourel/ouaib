@@ -14,7 +14,8 @@ const options = {
   debug: 'bool',
   parcours: 'int',
   exidx: 'int',
-  preview: 'bool'
+  preview: 'bool',
+  activity: 'int'
 }
 
 // Load parameters from url search infos
