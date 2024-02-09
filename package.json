@@ -23,8 +23,8 @@
     "htmlhint": "^1.1.4",
     "marked": "^9.1.5",
     "marked-base-url": "^1.1.1",
+    "marked-newtab": "^0.2.0",
     "marked-pandoc": "^0.0.2",
-    "marked-newtab": "^0.1.0",
     "snapsvg": "^0.5.1"
   },
   "devDependencies": {
