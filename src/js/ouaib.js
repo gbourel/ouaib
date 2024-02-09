@@ -724,25 +724,24 @@ async function checkResult() {
       }
     }
     if (syntaxErr === 0 && nbFailed === 0) {
-      // TODO
-      // const answer = sha256('TODO');
-      // if(parent) {
-      //   parent.window.postMessage({
-      //     'answer': answer,
-      //     'from': 'web.nsix.fr'
-      //   }, '*');
-      // }
-
       let response = {
         'html': _htmlEditor.state.doc.toString(),
-        'css': _cssEditor.state.doc.toString()
+        'css': _cssEditor.state.doc.toString(),
+        'js': _jsEditor.state.doc.toString()
       };
-      lcms.registerSuccess(_exercise.id, JSON.stringify(response), (data) => {
-        config.log('Userinfo:', JSON.stringify(data));
-        _user.results.push(data);
-        updateAchievements();
-      });
-      gui.displaySuccess();
+      if(window.parent) {
+        window.parent.window.postMessage({
+          'answer': '__done__',
+          'content': response,
+          'from': 'web.nsix.fr'
+        }, '*');
+      } else {
+        lcms.registerSuccess(_exercise.id, JSON.stringify(response), (data) => {
+          _user.results.push(data);
+          updateAchievements();
+        });
+        gui.displaySuccess();
+      }
     }
   }
   const elt = document.createElement('div');
@@ -930,6 +929,8 @@ async function init(){
     let loaded = false;
     if (config.activity) {
       let act = await lcms.fetchActivity(config.activity);
+      document.getElementById('logo').style.display ='none';
+      document.getElementById('profile').style.display ='none';
       displayExercise(act);
       loaded = true;
     } else if(config.parcours >= 0) {
