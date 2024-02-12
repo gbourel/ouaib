@@ -270,7 +270,10 @@ function initHTMLEditor() {
       sizeTheme,
       aura,           // theme "aura"
       cmhistory(),
-      keymap.of([...defaultKeymap, ...historyKeymap]),
+      keymap.of([
+        { key: "Ctrl-Enter", run: checkResult },
+        ...defaultKeymap, ...historyKeymap
+      ]),
       html(),
       syntaxHighlighting(defaultHighlightStyle),
       lineNumbers(),
