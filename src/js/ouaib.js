@@ -1,4 +1,4 @@
-const VERSION = 'v0.3.1';
+const VERSION = 'v0.4.0';
 document.getElementById('version').textContent = VERSION;
 
 import '../css/ouaib.css';
@@ -28,9 +28,11 @@ let _nsix = false;        // If embedded in a nsix challenge
 
 let _journeys = [];    // All journeys
 let _journey = null;   // Current journey
-let _exercises = [];   // All exercises for current journey
-let _exerciseIdx = 0;  // Current exercise index
-let _exercise = null;  // Current exercise
+let _activity = null;  // Current activity
+let _activityIdx = -1; // Current activity index
+let _quiz = [];        // Current quiz
+let _questionIdx = 0;  // Current question index
+let _question = null;  // Current question
 let _tests = [];       // Tests for current exercise
 let _over = false;     // currently running program is terminated
 let _lastFocus = null; // focused element before program start (for graphical display only)
@@ -96,7 +98,6 @@ function displayMenu() {
   const instruction = document.getElementById('instruction');
   gui.hideHelp();
   _journey = null;
-  _exercises = [];
   instruction.innerHTML = '';
   progress.classList.add('hidden');
   main.classList.add('hidden');
@@ -119,8 +120,8 @@ function updateListTx() {
   }, 1000, mina.easeinout, () => {
     for (let i = 0; i < markers.length; i++) {
       let content = markers[i].children();
-      content[0].attr('stroke', _exerciseIdx === i ? '#006CC5' : '#444');
-      content[1].attr('fill', _exerciseIdx === i ? '#006CC5' : '#444');
+      content[0].attr('stroke', _activityIdx === i ? '#006CC5' : '#444');
+      content[1].attr('fill', _activityIdx === i ? '#006CC5' : '#444');
     }
   });
   markers[delta_x].attr('display', 'none');
@@ -130,49 +131,56 @@ function updateListTx() {
   }
 }
 
-/// Display exercices list for navigation on top.
-function displayExercisesNav() {
-  const enabled = ['#ffeebc', '#366f9f', '#234968'];
-  const disabled = ['#aaaaaa', '#333333', '#777777'];
-  const MARKER_RADIUS = 12;
-  const MARKER_PX = 24;
-  const MARKER_PY = 24;
-  const MARKER_W = 42;
+/// Check if all activity questions are done.
+function isDone(journey, actIdx) {
+  if (!journey || !journey.results) { return false; }
+  const act = journey.activities[actIdx];
+  if (act && journey.results[act.id]) {
+    let ok = true;
+    for (const r of journey.results[act.id]) {
+      if (!(r.success || r.done)) {
+        ok = false;
+      }
+    }
+    return ok;
+  }
+  return false;
+}
 
-  let navTemplate = document.querySelector('#nav-template');
-  let elt = document.getElementById('progress');
+/// Display activities list for navigation on top.
+function displayActivitiesNav() {
+  if (!_journey) { return; }    // embedded
+  const navTemplate = document.querySelector('#nav-template');
+  const elt = document.getElementById('progress');
   elt.innerHTML = '';
   elt.classList.remove('hidden')
 
-  // let main = sp.g();
   markers = [];
   let lastDone = false;
-  for (let i = 0; i < _exercises.length; i++) {
-    let x = MARKER_PX + MARKER_W*i;
-    if (!_user.results) { break; }
-    let done  = _user.results.find(r => r.activity_id == _exercises[i].id && r.success)
-    let marker = document.importNode(navTemplate.content, true);
-    let ne = marker.querySelector('.nav-elt');
+  for (let i = 0; i < _journey.activities.length; i++) {
+    const done  = isDone(_journey, i);
+    const marker = document.importNode(navTemplate.content, true);
+    const ne = marker.querySelector('.nav-elt');
     ne.textContent = i;
     if (lastDone) {
       ne.classList.add('available');
-      ne.onclick = () => {
-        _exerciseIdx = i;
+      ne.onclick = async () => {
+        await loadActivity(i, true);
         displayExercise();
       };
     }
     if (done) {
       lastDone = true;
       ne.classList.add('valid');
-      ne.onclick = () => {
-        _exerciseIdx = i;
+      ne.onclick = async () => {
+        await loadActivity(i, true);
         displayExercise();
       };
     } else {
       lastDone = false;
       ne.classList.remove('valid');
     }
-    if (_exerciseIdx === i) {
+    if (_activityIdx === i) {
       ne.classList.add('selected');
     } else {
       ne.classList.remove('selected');
@@ -350,10 +358,9 @@ function initJSEditor() {
 }
 
 /**
- * Affiche l'exercice en cours (_exercises[_exerciseIdx]).
+ * Affiche l'exercice en cours.
  */
-function displayExercise(act) {
-  console.info(act);
+function displayExercise() {
   const instruction = document.getElementById('instruction');
   const main = document.getElementById('main');
   const menu = document.getElementById('mainmenu');
@@ -365,9 +372,10 @@ function displayExercise(act) {
   help.classList.remove('hidden');
   output.classList.add('md:w-1/2');
 
-  _exercise = act || _exercises[_exerciseIdx];
-
-  if (_exercise) {
+  if (_quiz.questions) {
+    _question = _quiz.questions[_questionIdx];
+  }
+  if (_question) {
     let proghtml = ' ';  // one space to force reload
     let progcss = ' ';   // one space to force reload
     let progjs = ' ';    // one space to force reload
@@ -383,21 +391,16 @@ function displayExercise(act) {
     if(!_jsEditor) {
       initJSEditor();
     }
-    if(_exercise.tests) { // deprecated format
-      loadTestsCSV(_exercise.tests);
-    } else {
-      loadTestsCSV(_exercise.validation);
-    }
-    // title.innerHTML = _exercise.title || 'Entrainement';
-    marked.use(baseUrl(`https://filedn.nsix.fr/act/${_exercise.id}/`));
+    loadTestsCSV(_question.answers);
+
+    // title.innerHTML = _question.title || 'Entrainement';
+    marked.use(baseUrl(`https://filedn.nsix.fr/act/${_activity.id}/`));
     marked.use(pandoc);
     marked.use(newtab);
-    if(_exercise.instruction) { // deprecated format
-      instruction.innerHTML = marked.parse(_exercise.instruction);
-    } else {
-      let md = _exercise.intro;
-      instruction.innerHTML = marked.parse(md);
-    }
+
+
+    let md = _question.instruction;
+    instruction.innerHTML = marked.parse(md);
     // TODO ?
     // renderMathInElement(instruction, {
     //   delimiters: [
@@ -408,25 +411,25 @@ function displayExercise(act) {
     //   ],
     //   throwOnError : false
     // });
-    if(_exercise.proposal && _exercise.proposal.length > 0) {
-      proghtml = _exercise.proposal;
+    if(_question.proposal && _question.proposal.length > 0) {
+      proghtml = _question.proposal;
       progcss = '';
       progjs = '';
       let cssidx = proghtml.indexOf('_CSS_');
       let jsidx = proghtml.indexOf('_JS_');
       if (cssidx > -1 || jsidx > -1) {
         if (cssidx === -1) {
-          proghtml = _exercise.proposal.substring(0, jsidx);
+          proghtml = _question.proposal.substring(0, jsidx);
           progcss = ' ';
-          progjs = _exercise.proposal.substring(jsidx + 5);
+          progjs = _question.proposal.substring(jsidx + 5);
         } else {
-          proghtml = _exercise.proposal.substring(0, cssidx);
+          proghtml = _question.proposal.substring(0, cssidx);
           if (jsidx === -1) {
-            progcss = _exercise.proposal.substring(cssidx + 6);
+            progcss = _question.proposal.substring(cssidx + 6);
             progjs = ' ';
           } else {
-            progcss = _exercise.proposal.substring(cssidx + 6, jsidx);
-            progjs = _exercise.proposal.substring(jsidx + 5);
+            progcss = _question.proposal.substring(cssidx + 6, jsidx);
+            progjs = _question.proposal.substring(jsidx + 5);
           }
         }
       }
@@ -437,8 +440,8 @@ function displayExercise(act) {
     let helpBtn = document.getElementById('help');
     let helpPanel = document.getElementById('help-panel');
     helpPanel.innerHTML = '';
-    if(_exercise.help) {
-      let helps = _exercise.help.split(/\n/);
+    if(_question.help) {
+      let helps = _question.help.split(/\n/);
       for(let msg of helps) {
         if(msg.startsWith('* ')) { msg = msg.substring(2, msg.length); }
         let c = document.createElement('div');
@@ -449,7 +452,7 @@ function displayExercise(act) {
     } else {
       helpBtn.classList.add('hidden');
     }
-    let result = _user?.results?.find(r => r.activity_id == _exercise.id);
+    let result = _user?.results?.find(r => r.activity_id == _question.id);
     if(lastproghtml && lastproghtml.length) {
       proghtml = lastproghtml;
     } else {
@@ -521,21 +524,63 @@ function displayExercise(act) {
     updateHTML('');
   }
 
-  displayExercisesNav();
+  displayActivitiesNav();
 }
 
 // Go to next exercise
-function nextExercise() {
+async function nextQuestion() {
   const successOverlay = document.getElementById('overlay');
   successOverlay.classList.add('hidden');
   var outputpre = document.getElementById('output');
-  outputpre.innerHTML = ''
-  _exerciseIdx++;
+  outputpre.innerHTML = '';
+
+  // si il reste des questions
+  if (_questionIdx + 1 < _quiz.questions.length) {
+    _questionIdx++;
+  } else {
+    // si il reste des activités
+    let idx = _activityIdx + 1;
+    while (idx < _journey.activities.length) {
+      if (!isDone(_journey, idx)) {
+        await loadActivity(idx);
+        break;
+      }
+      idx++;
+    }
+    // si toutes les activites sont terminees
+    if (idx >= _journey.activities.length) {
+      _activityIdx = -1;
+      _questionIdx = -1;
+    }
+  }
+
+  // if (_activity.questions)
+  // _questionIdx++;
   displayExercise();
 }
 
+async function loadActivity(idx, force=false) {
+  _activityIdx = idx;
+  _activity = _journey.activities[idx];
+  if (_activity && _activity.quiz_id) {
+    const results = _journey.results[_activity.id];
+    _quiz = await lcms.fetchQuiz(_activity.quiz_id);
+    _questionIdx = force ? '0' : -1;
+    if (results) {
+      for (let i = 0; i < results.length; i++) {
+        if(!results[i].done) {
+          _questionIdx = i;
+          break;;
+        }
+      }
+    } else {
+      _questionIdx = 0;
+    }
+  }
+}
+
 // Load exercises from remote LCMS
-function loadExercises(level, pushHistory){
+async function loadJourney(level, pushHistory){
   if(!level) { return console.warn('Missing level'); }
   if(!_user && !_skipLogin) {
     return gui.loginWarning();
@@ -543,26 +588,18 @@ function loadExercises(level, pushHistory){
   gui.showLoading();
 
   _journey = _journeys[level-1];
-  _exercises = _journey.activities;
-  _exerciseIdx = -1;
-  if (config.exidx >= 0) {
-    _exerciseIdx = config.exidx;
-  } else if (_user) {
-    for (let i in _exercises) {
-      if (_exerciseIdx < 0) {
-        if (_user.results) {
-          let r = _user.results.find(r => {
-            return r.activity_id == _exercises[i].id;
-          });
-          if(!r || !r.success) {
-            _exerciseIdx = parseInt(i);
-          }
-        }
+  _activityIdx = -1;
+  _questionIdx = -1;
+
+  if (_journey) {
+    for (let i = 0; i < _journey.activities.length; i++) {
+      if (!isDone(_journey, i)) {
+        await loadActivity(i);
+        break;
       }
     }
-  } else {
-    _exerciseIdx = 0;
   }
+  // Kludge to hide HTML and/or CSS editor for first exercises
   const tabElt = document.querySelector('#main .tabs');
   if (level === 1) {  // no tab for first journey
     tabElt.style.display = 'none';
@@ -584,30 +621,30 @@ function loadExercises(level, pushHistory){
 
 // Reload initial HTML content
 function resetHTML(){
-  if(_exercise && _exercise.proposal && _exercise.proposal.length > 0) {
+  if(_question && _question.proposal && _question.proposal.length > 0) {
     if(_htmlEditor) {
-      let htmlcontent = _exercise.proposal;
+      let htmlcontent = _question.proposal;
       let csscontent = '';
       let jscontent = '';
       let cssidx = htmlcontent.indexOf('_CSS_');
       let jsidx = htmlcontent.indexOf('_JS_');
       if (cssidx > -1 || jsidx > -1) {
         if (cssidx === -1) {
-          htmlcontent = _exercise.proposal.substring(0, jsidx);
+          htmlcontent = _question.proposal.substring(0, jsidx);
           csscontent = ' ';
-          jscontent = _exercise.proposal.substring(jsidx + 5);
+          jscontent = _question.proposal.substring(jsidx + 5);
         } else {
-          htmlcontent = _exercise.proposal.substring(0, cssidx);
+          htmlcontent = _question.proposal.substring(0, cssidx);
           if (jsidx === -1) {
-            csscontent = _exercise.proposal.substring(cssidx + 6);
+            csscontent = _question.proposal.substring(cssidx + 6);
             jscontent = ' ';
           } else {
-            csscontent = _exercise.proposal.substring(cssidx + 6, jsidx);
-            jscontent = _exercise.proposal.substring(jsidx + 5);
+            csscontent = _question.proposal.substring(cssidx + 6, jsidx);
+            jscontent = _question.proposal.substring(jsidx + 5);
           }
         }
       }
-      // _htmlEditor.setValue(_exercise.proposal);
+      // _htmlEditor.setValue(_question.proposal);
       _htmlEditor.dispatch({
         changes: {
           from: 0,
@@ -680,7 +717,7 @@ function runCheck(doc, test) {
 
 /// Checks HTML content result
 async function checkResult() {
-  if (!_exercise) { return; }
+  if (!_question) { return; }
   let outputFrame = document.getElementById("output");
   let outputDoc = outputFrame.contentDocument || outputFrame.contentWindow.document;
   let nbFailed = _tests.length;
@@ -732,15 +769,19 @@ async function checkResult() {
         'css': _cssEditor.state.doc.toString(),
         'js': _jsEditor.state.doc.toString()
       };
-      if(window.parent) {
+      if(_nsix) {
         window.parent.window.postMessage({
           'answer': '__done__',
           'content': response,
           'from': 'web.nsix.fr'
         }, '*');
       } else {
-        lcms.registerSuccess(_exercise.id, JSON.stringify(response), (data) => {
-          _user.results.push(data);
+        lcms.registerSuccess(_question.id, _activity.id, JSON.stringify(response), (data) => {
+          if(!_journey.results[_activity.id]) {
+            _journey.results[_activity.id] = [data];
+          } else {
+            _journey.results[_activity.id].push(data);
+          }
           updateAchievements();
         });
         gui.displaySuccess();
@@ -784,35 +825,13 @@ function registerSkipLogin() {
   _skipLogin = true;
 }
 
-async function loadResults() {
-  let token = lcms.getAuthToken();
-  if(token) {
-    let parcours = [];
-    for (let j of _journeys) {
-      parcours.push(`"${j.code}"`);
-    }
-    const res = await fetch(config.lcmsUrl + `/resultats/?parcours=[${parcours.join(',')}]`, {
-      'headers': {
-        'Authorization': 'Bearer ' + token
-      }
-    });
-    if (res && res.status === 200) {
-      const results = await res.json()
-      return results;
-    }
-    console.error('Unable to fetch results', res);
-    return null;
-  }
-  return null;
-}
-
 function getHTMLKey(){
   let key = 'html';
   if(_user) {
     key += '_' + _user.externalId;
   }
-  if(_exercise) {
-    key += '_' + _exercise.id;
+  if(_question) {
+    key += '_' + _question.id;
   }
   return key;
 }
@@ -821,8 +840,8 @@ function getCSSKey(){
   if(_user) {
     key += '_' + _user.externalId;
   }
-  if(_exercise) {
-    key += '_' + _exercise.id;
+  if(_question) {
+    key += '_' + _question.id;
   }
   return key;
 }
@@ -831,8 +850,8 @@ function getJSKey(){
   if(_user) {
     key += '_' + _user.externalId;
   }
-  if(_exercise) {
-    key += '_' + _exercise.id;
+  if(_question) {
+    key += '_' + _question.id;
   }
   return key;
 }
@@ -845,6 +864,7 @@ function logout() {
   location.reload();
 }
 
+/// Affiche le pourcentage de completion des parcours
 function updateAchievements() {
   if(!_user || !_journeys) { return; }
   for (let i = 1; i <= _journeys.length ; i++){
@@ -853,13 +873,8 @@ function updateAchievements() {
     if (!elt) { continue; }
     let total =  _journeys[i-1].activities.length;
     let done = 0;
-    for (let ch of _journeys[i-1].activities){
-      if (_user.results) {
-        let result = _user.results.find(r => r.activity_id == ch.id);
-        if(result && result.success) {
-          done++;
-        }
-      }
+    for (let k in _journeys[i-1].results) {
+      done += _journeys[i-1].results[k].length;
     }
     let percent = 100.0 * done / total;
     let stars = Math.round(percent/20);
@@ -878,8 +893,6 @@ function updateAchievements() {
 async function init(){
   if(config.activity) {
     console.info("Specific activity", config.activity);
-  } else {
-    _journeys = await lcms.fetchJourneys();
   }
 
   marked.setOptions({
@@ -889,15 +902,15 @@ async function init(){
   document.getElementById('logoutBtn').addEventListener('click', logout);
   document.getElementById('checkbtn').addEventListener('click', checkResult);
   document.getElementById('homebtn').addEventListener('click', () => { displayMenu(); history.pushState(null, '', '/'); });
-  document.getElementById('nextbtn').addEventListener('click', nextExercise);
+  document.getElementById('nextbtn').addEventListener('click', nextQuestion);
   document.getElementById('resetbtn').addEventListener('click', resetHTML);
   document.getElementById('login').addEventListener('click', login);
   document.getElementById('login2').addEventListener('click', login);
   // document.getElementById('skip-login-btn').addEventListener('click', registerSkipLogin);
-  document.getElementById('level-1').addEventListener('click', () => loadExercises(1, true));
-  document.getElementById('level-2').addEventListener('click', () => loadExercises(2, true));
-  document.getElementById('level-3').addEventListener('click', () => loadExercises(3, true));
-  // document.getElementById('level-4').addEventListener('click', () => loadExercises(4, true));
+  document.getElementById('level-1').addEventListener('click', () => loadJourney(1, true));
+  document.getElementById('level-2').addEventListener('click', () => loadJourney(2, true));
+  document.getElementById('level-3').addEventListener('click', () => loadJourney(3, true));
+  // document.getElementById('level-4').addEventListener('click', () => loadJourney(4, true));
   document.getElementById('profileMenuBtn').addEventListener('click', gui.toggleMenu);
 
   document.getElementById('help').addEventListener('click', gui.showHelp);
@@ -909,37 +922,43 @@ async function init(){
 
   addEventListener('popstate', evt => {
     if(evt.state && evt.state.level) {
-      loadExercises(evt.state.level);
+      loadJourney(evt.state.level);
     } else {
       displayMenu();
     }
   });
 
   lcms.loadUser(async (user) => {
+    let loaded = false;
     if(user && !user.err) {
       _user = user;
       document.getElementById('username').innerHTML = user.firstName || 'Moi';
       document.getElementById('profile-menu').classList.remove('hidden');
-      if (!config.activity) {
-        _user.results = await loadResults();
+      if (config.activity) {
+        _activity = await lcms.fetchActivity(config.activity);
+        if (_activity && _activity.quiz_id) {
+          _quiz = await lcms.fetchQuiz(_activity.quiz_id);
+        }
+        document.getElementById('profile').style.display ='none';
+        document.getElementById('homebtn').style.display = 'none';
+        document.getElementById('logo').style.display ='none';
+        displayExercise();
+        loaded = true;
+      } else {
+        _journeys = await lcms.fetchJourneys();
+        // _user.results = await lcms.fetchResults(_journeys);
         updateAchievements();
+        if(config.parcours >= 0) {
+          loadJourney(config.parcours);
+          loaded = true;
+        }
       }
     } else {
       document.getElementById('login').classList.remove('hidden');
       _user = null;
     }
 
-    let loaded = false;
-    if (config.activity) {
-      let act = await lcms.fetchActivity(config.activity);
-      document.getElementById('logo').style.display ='none';
-      document.getElementById('profile').style.display ='none';
-      displayExercise(act);
-      loaded = true;
-    } else if(config.parcours >= 0) {
-      loadExercises(lvl);
-      loaded = true;
-    }
+
     if(!loaded) { displayMenu(); }
     gui.hideLoading();
   });
