@@ -47,7 +47,7 @@ export const lcms = {
   },
   fetchJourney: (code) => {
     return new Promise((resolve, reject) => {
-      let token = lcms.getAuthToken();
+      const token = lcms.getAuthToken();
       const req = new Request(`${config.lcmsUrl}/parcours/code/${code}`, {
         'headers': { 'Authorization': `Bearer ${token}` }
       });
@@ -77,6 +77,8 @@ export const lcms = {
       });
       fetch(req).then(res => { return res.json(); })
       .then(async act => {
+        const res = await fetch(`${config.lcmsUrl}/quiz/${act.quiz_id}`);
+        act.quiz = await res.json();
         resolve(act);
       });
     });

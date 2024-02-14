@@ -1,4 +1,4 @@
-const VERSION = 'v0.4.0';
+const VERSION = 'v0.4.1';
 document.getElementById('version').textContent = VERSION;
 
 import '../css/ouaib.css';
@@ -50,6 +50,25 @@ new ResizeObserver((entries) => {
     }
   }
 }).observe(document.getElementById('htmlsrc'));
+
+async function handleMessage(msg) {
+  if (!_activity || (msg.data.activity && msg.data.activity !== _activity.id)) {
+    _activity = await lcms.fetchActivity(msg.data.activity);
+    if (_activity && _activity.quiz) {
+      _quiz = _activity.quiz;
+    }
+  }
+  if (_quiz && _quiz.questions && msg.data.question < _quiz.questions.length) {
+    _questionIdx = msg.data.question;
+    displayExercise();
+  } else {
+    const instruction = document.getElementById('instruction');
+    instruction.innerHTML = '<div class="error">🔍️ Erreur : question non trouvée.</div>';
+    console.warn(msg.data.question, _quiz.questions);
+  }
+
+}
+window.addEventListener('message', handleMessage, false)
 
 /**
  * Load CSV tests from question format is :
@@ -891,10 +910,6 @@ function updateAchievements() {
 }
 
 async function init(){
-  if(config.activity) {
-    console.info("Specific activity", config.activity);
-  }
-
   marked.setOptions({
     gfm: true
   });
@@ -934,19 +949,20 @@ async function init(){
       _user = user;
       document.getElementById('username').innerHTML = user.firstName || 'Moi';
       document.getElementById('profile-menu').classList.remove('hidden');
-      if (config.activity) {
-        _activity = await lcms.fetchActivity(config.activity);
-        if (_activity && _activity.quiz_id) {
-          _quiz = await lcms.fetchQuiz(_activity.quiz_id);
-        }
+      if (config.activity || config.embedded) {
+        console.info("Embedded activity");
+
         document.getElementById('profile').style.display ='none';
         document.getElementById('homebtn').style.display = 'none';
         document.getElementById('logo').style.display ='none';
-        displayExercise();
+
+        window.parent.window.postMessage({
+          'state': '__intialized__',
+          'from': 'python.nsix.fr'
+        }, '*');
         loaded = true;
       } else {
         _journeys = await lcms.fetchJourneys();
-        // _user.results = await lcms.fetchResults(_journeys);
         updateAchievements();
         if(config.parcours >= 0) {
           loadJourney(config.parcours);
