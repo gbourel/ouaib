@@ -20,7 +20,7 @@ export const lcms = {
   loadUser: (cb) => {
     let token = lcms.getAuthToken();
     if(token) {
-      const meUrl = config.lcmsUrl + '/auth/userinfo';
+      const meUrl = `${config.lcmsUrl}/auth/userinfo`;
       const req = new Request(meUrl);
       fetch(req, {
         'headers': {
