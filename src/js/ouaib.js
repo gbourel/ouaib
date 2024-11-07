@@ -1,5 +1,6 @@
-const VERSION = 'v0.4.1';
+const VERSION = 'v0.5.1';
 document.getElementById('version').textContent = VERSION;
+console.info(`Version ${VERSION}`);
 
 import '../css/ouaib.css';
 
@@ -876,7 +877,7 @@ function getJSKey(){
 }
 
 function logout() {
-  const cookies = ['neossot'];
+  const cookies = ['usrssot'];
   for (let cookie of cookies) {
     document.cookie=`${cookie}=; domain=${config.cookieDomain}; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
   }
@@ -950,7 +951,7 @@ async function init(){
       document.getElementById('username').innerHTML = user.firstName || 'Moi';
       document.getElementById('profile-menu').classList.remove('hidden');
       if (config.activity || config.embedded) {
-        console.info("Embedded activity");
+        console.info("NSIX Embedded activity");
 
         document.getElementById('profile').style.display ='none';
         document.getElementById('homebtn').style.display = 'none';

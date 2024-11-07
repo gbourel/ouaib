@@ -4,7 +4,7 @@ export const lcms = {
   getAuthToken: () => {
     let token = null;
     if(document.cookie) {
-      const name = 'neossot='
+      const name = 'usrssot='
       let cookies = decodeURIComponent(document.cookie).split(';');
       for (let c of cookies) {
         if(token == null) {
