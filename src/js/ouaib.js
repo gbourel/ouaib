@@ -612,6 +612,7 @@ async function loadJourney(level, pushHistory){
   _questionIdx = -1;
 
   if (_journey) {
+    if (!_journey.results) { _journey.results = {}; }
     for (let i = 0; i < _journey.activities.length; i++) {
       if (!isDone(_journey, i)) {
         await loadActivity(i);
