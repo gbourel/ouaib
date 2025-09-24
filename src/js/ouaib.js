@@ -1,4 +1,4 @@
-const VERSION = 'v0.5.1';
+const VERSION = 'v0.5.2';
 document.getElementById('version').textContent = VERSION;
 console.info(`Version ${VERSION}`);
 
