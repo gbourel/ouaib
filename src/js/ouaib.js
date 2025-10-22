@@ -1,4 +1,4 @@
-const VERSION = 'v0.5.6';
+const VERSION = 'v0.5.8';
 document.getElementById('version').textContent = VERSION;
 console.info(`Version ${VERSION}`);
 
@@ -949,7 +949,7 @@ async function init(){
     let loaded = false;
     if(user && !user.err) {
       _user = user;
-      document.getElementById('username').innerHTML = user.firstName || 'Moi';
+      document.getElementById('username').innerHTML = user.firstname || 'Moi';
       document.getElementById('profile-menu').classList.remove('hidden');
       if (config.activity || config.embedded) {
         console.info("NSIX Embedded activity");
