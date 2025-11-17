@@ -1,4 +1,4 @@
-const VERSION = 'v0.5.10';
+const VERSION = 'v0.6.0';
 document.getElementById('version').textContent = VERSION;
 console.info(`Version ${VERSION}`);
 
@@ -40,6 +40,10 @@ let _lastFocus = null; // focused element before program start (for graphical di
 
 let _user = null;
 
+const _context = {
+  question: null
+};
+
 const imgCache = {};
 
 // Resize src textarea when parent div is resized
@@ -53,20 +57,45 @@ new ResizeObserver((entries) => {
 }).observe(document.getElementById('htmlsrc'));
 
 async function handleMessage(msg) {
-  if (!_activity || (msg.data.activity && msg.data.activity !== _activity.id)) {
-    _activity = await lcms.fetchActivity(msg.data.activity);
-    if (_activity && _activity.quiz) {
-      _quiz = _activity.quiz;
+  if (msg.data && msg.data.state) {
+    if (msg.data.state === '__load__') {
+      _context.question = {
+        proposal: msg.data.proposal,
+        answers: msg.data.tests
+      };
+      // _prog = '';
+      if(msg.data.proposal && msg.data.proposal.length > 0) {
+        // _prog = msg.data.proposal;
+        document.getElementById('resetbtn').classList.remove('hidden');
+      } else {
+        document.getElementById('resetbtn').classList.add('hidden');
+      }
+
+      // _questionId = msg.data.question;
+      // _context.tests = lcms.loadTestsCSV(msg.data.tests);
+
+      // let last = localStorage.getItem(`prog_embedded_${_questionId}`);
+      // _context.pythonEditor.setValue(last ? last : _prog);
+      displayExercise(_context.question);
+    } else {
+      console.warn('Unknown message state', msg.data.state);
     }
   }
-  if (_quiz && _quiz.questions && msg.data.question < _quiz.questions.length) {
-    _questionIdx = msg.data.question;
-    displayExercise();
-  } else {
-    const instruction = document.getElementById('instruction');
-    instruction.innerHTML = '<div class="error">🔍️ Erreur : question non trouvée.</div>';
-    console.warn(msg.data.question, _quiz.questions);
-  }
+
+  // if (!_activity || (msg.data.activity && msg.data.activity !== _activity.id)) {
+  //   _activity = await lcms.fetchActivity(msg.data.activity);
+  //   if (_activity && _activity.quiz) {
+  //     _quiz = _activity.quiz;
+  //   }
+  // }
+  // if (_quiz && _quiz.questions && msg.data.question < _quiz.questions.length) {
+  //   _questionIdx = msg.data.question;
+  //   displayExercise();
+  // } else {
+  //   const instruction = document.getElementById('instruction');
+  //   instruction.innerHTML = '<div class="error">🔍️ Erreur : question non trouvée.</div>';
+  //   console.warn(msg.data.question, _quiz.questions);
+  // }
 
 }
 window.addEventListener('message', handleMessage, false)
@@ -290,6 +319,7 @@ function translateDiagnostic(input, doc, offset) {
 }
 
 function initHTMLEditor() {
+  console.info('initHTMLEditor');
   let sizeTheme = EditorView.theme({
     ".cm-content, .cm-gutter": {minHeight: "200px"},
   });
@@ -380,22 +410,22 @@ function initJSEditor() {
 /**
  * Affiche l'exercice en cours.
  */
-function displayExercise() {
+function displayExercise(question) {
   const instruction = document.getElementById('instruction');
   const main = document.getElementById('main');
   const menu = document.getElementById('mainmenu');
   const help = document.getElementById('help');
   const output = document.getElementById('output');
-  menu.style.transform = 'translate(0, 100vh)';
-  setTimeout(() => { menu.style.display = 'none' }, 300);
+  // menu.style.transform = 'translate(0, 100vh)';
+  // setTimeout(() => { menu.style.display = 'none' }, 300);
+  // help.classList.remove('hidden');
   main.classList.remove('hidden');
-  help.classList.remove('hidden');
   output.classList.add('md:w-1/2');
 
   if (_quiz.questions) {
-    _question = _quiz.questions[_questionIdx];
+    question = _quiz.questions[_questionIdx];
   }
-  if (_question) {
+  if (question) {
     let proghtml = ' ';  // one space to force reload
     let progcss = ' ';   // one space to force reload
     let progjs = ' ';    // one space to force reload
@@ -411,16 +441,17 @@ function displayExercise() {
     if(!_jsEditor) {
       initJSEditor();
     }
-    loadTestsCSV(_question.answers);
+    loadTestsCSV(question.answers);
 
     // title.innerHTML = _question.title || 'Entrainement';
-    marked.use(baseUrl(`https://filedn.nsix.fr/act/${_activity.id}/`));
+    // TODO activity ID
+    marked.use(baseUrl(`https://filedn.nsix.fr/act/245/`));
     marked.use(pandoc);
     marked.use(newtab);
 
 
-    let md = _question.instruction;
-    instruction.innerHTML = marked.parse(md);
+    // let md = question.instruction;
+    // instruction.innerHTML = marked.parse(md);
     // TODO ?
     // renderMathInElement(instruction, {
     //   delimiters: [
@@ -431,25 +462,25 @@ function displayExercise() {
     //   ],
     //   throwOnError : false
     // });
-    if(_question.proposal && _question.proposal.length > 0) {
-      proghtml = _question.proposal;
+    if(question.proposal && question.proposal.length > 0) {
+      proghtml = question.proposal;
       progcss = '';
       progjs = '';
       let cssidx = proghtml.indexOf('_CSS_');
       let jsidx = proghtml.indexOf('_JS_');
       if (cssidx > -1 || jsidx > -1) {
         if (cssidx === -1) {
-          proghtml = _question.proposal.substring(0, jsidx);
+          proghtml = question.proposal.substring(0, jsidx);
           progcss = ' ';
-          progjs = _question.proposal.substring(jsidx + 5);
+          progjs = question.proposal.substring(jsidx + 5);
         } else {
-          proghtml = _question.proposal.substring(0, cssidx);
+          proghtml = question.proposal.substring(0, cssidx);
           if (jsidx === -1) {
-            progcss = _question.proposal.substring(cssidx + 6);
+            progcss = question.proposal.substring(cssidx + 6);
             progjs = ' ';
           } else {
-            progcss = _question.proposal.substring(cssidx + 6, jsidx);
-            progjs = _question.proposal.substring(jsidx + 5);
+            progcss = question.proposal.substring(cssidx + 6, jsidx);
+            progjs = question.proposal.substring(jsidx + 5);
           }
         }
       }
@@ -457,22 +488,22 @@ function displayExercise() {
     } else {
       document.getElementById('resetbtn').classList.add('hidden');
     }
-    let helpBtn = document.getElementById('help');
-    let helpPanel = document.getElementById('help-panel');
-    helpPanel.innerHTML = '';
-    if(_question.help) {
-      let helps = _question.help.split(/\n/);
-      for(let msg of helps) {
-        if(msg.startsWith('* ')) { msg = msg.substring(2, msg.length); }
-        let c = document.createElement('div');
-        c.innerHTML = marked.parse(msg);
-        helpPanel.appendChild(c);
-      }
-      helpBtn.classList.remove('hidden');
-    } else {
-      helpBtn.classList.add('hidden');
-    }
-    let result = _user?.results?.find(r => r.activity_id == _question.id);
+    // let helpBtn = document.getElementById('help');
+    // let helpPanel = document.getElementById('help-panel');
+    // helpPanel.innerHTML = '';
+    // if(question.help) {
+    //   let helps = question.help.split(/\n/);
+    //   for(let msg of helps) {
+    //     if(msg.startsWith('* ')) { msg = msg.substring(2, msg.length); }
+    //     let c = document.createElement('div');
+    //     c.innerHTML = marked.parse(msg);
+    //     helpPanel.appendChild(c);
+    //   }
+    //   helpBtn.classList.remove('hidden');
+    // } else {
+    //   helpBtn.classList.add('hidden');
+    // }
+    let result = _user?.results?.find(r => r.activity_id == question.id);
     if(lastproghtml && lastproghtml.length) {
       proghtml = lastproghtml;
     } else {
@@ -539,45 +570,46 @@ function displayExercise() {
     if(!_htmlEditor) { initHTMLEditor(); }
     if(!_cssEditor) { initCSSEditor(); }
     if(!_jsEditor) { initJSEditor(); }
-    instruction.innerHTML = marked.parse('**Bravo !** Tous les exercices de ce niveau sont terminés !');
+    // instruction.innerHTML = marked.parse('**Bravo !** Tous les exercices de ce niveau sont terminés !');
     _htmlEditor.dispatch({changes: {from: 0, to: _htmlEditor.state.doc.length, insert: '' }});
     updateHTML('');
   }
 
-  displayActivitiesNav();
+  gui.hideLoading();
+  // displayActivitiesNav();
 }
 
-// Go to next exercise
-async function nextQuestion() {
-  const successOverlay = document.getElementById('overlay');
-  successOverlay.classList.add('hidden');
-  var outputpre = document.getElementById('output');
-  outputpre.innerHTML = '';
+// // Go to next exercise
+// async function nextQuestion() {
+//   const successOverlay = document.getElementById('overlay');
+//   successOverlay.classList.add('hidden');
+//   var outputpre = document.getElementById('output');
+//   outputpre.innerHTML = '';
 
-  // si il reste des questions
-  if (_questionIdx + 1 < _quiz.questions.length) {
-    _questionIdx++;
-  } else {
-    // si il reste des activités
-    let idx = _activityIdx + 1;
-    while (idx < _journey.activities.length) {
-      if (!isDone(_journey, idx)) {
-        await loadActivity(idx);
-        break;
-      }
-      idx++;
-    }
-    // si toutes les activites sont terminees
-    if (idx >= _journey.activities.length) {
-      _activityIdx = -1;
-      _questionIdx = -1;
-    }
-  }
+//   // si il reste des questions
+//   if (_questionIdx + 1 < _quiz.questions.length) {
+//     _questionIdx++;
+//   } else {
+//     // si il reste des activités
+//     let idx = _activityIdx + 1;
+//     while (idx < _journey.activities.length) {
+//       if (!isDone(_journey, idx)) {
+//         await loadActivity(idx);
+//         break;
+//       }
+//       idx++;
+//     }
+//     // si toutes les activites sont terminees
+//     if (idx >= _journey.activities.length) {
+//       _activityIdx = -1;
+//       _questionIdx = -1;
+//     }
+//   }
 
-  // if (_activity.questions)
-  // _questionIdx++;
-  displayExercise();
-}
+//   // if (_activity.questions)
+//   // _questionIdx++;
+//   displayExercise();
+// }
 
 async function loadActivity(idx, force=false) {
   _activityIdx = idx;
@@ -599,73 +631,73 @@ async function loadActivity(idx, force=false) {
   }
 }
 
-// Load exercises from remote LCMS
-async function loadJourney(level, pushHistory){
-  if(!level) { return console.warn('Missing level'); }
-  if(!_user && !_skipLogin) {
-    return gui.loginWarning();
-  }
-  gui.showLoading();
+// // Load exercises from remote LCMS
+// async function loadJourney(level, pushHistory){
+//   if(!level) { return console.warn('Missing level'); }
+//   if(!_user && !_skipLogin) {
+//     return gui.loginWarning();
+//   }
+//   gui.showLoading();
 
-  _journey = _journeys[level-1];
-  _activityIdx = -1;
-  _questionIdx = -1;
+//   _journey = _journeys[level-1];
+//   _activityIdx = -1;
+//   _questionIdx = -1;
 
-  if (_journey) {
-    if (!_journey.results) { _journey.results = {}; }
-    for (let i = 0; i < _journey.activities.length; i++) {
-      if (!isDone(_journey, i)) {
-        await loadActivity(i);
-        break;
-      }
-    }
-  }
-  // Kludge to hide HTML and/or CSS editor for first exercises
-  const tabElt = document.querySelector('#main .tabs');
-  if (level === 1) {  // no tab for first journey
-    tabElt.style.display = 'none';
-  } else if (level === 2) {  // no js tab for second journey
-    const jstab = document.querySelector('#tab-js');
-    jstab.style.display = 'none';
-    tabElt.style.display = 'flex';
-  } else {
-    const jstab = document.querySelector('#tab-js');
-    jstab.style.display = 'flex';
-    tabElt.style.display = 'flex';
-  }
-  gui.hideLoading();
-  if(pushHistory) {
-    history.pushState({'level': level}, '', `/?parcours=${level}`);
-  }
-  displayExercise();
-}
+//   if (_journey) {
+//     if (!_journey.results) { _journey.results = {}; }
+//     for (let i = 0; i < _journey.activities.length; i++) {
+//       if (!isDone(_journey, i)) {
+//         await loadActivity(i);
+//         break;
+//       }
+//     }
+//   }
+//   // Kludge to hide HTML and/or CSS editor for first exercises
+//   const tabElt = document.querySelector('#main .tabs');
+//   if (level === 1) {  // no tab for first journey
+//     tabElt.style.display = 'none';
+//   } else if (level === 2) {  // no js tab for second journey
+//     const jstab = document.querySelector('#tab-js');
+//     jstab.style.display = 'none';
+//     tabElt.style.display = 'flex';
+//   } else {
+//     const jstab = document.querySelector('#tab-js');
+//     jstab.style.display = 'flex';
+//     tabElt.style.display = 'flex';
+//   }
+//   gui.hideLoading();
+//   if(pushHistory) {
+//     history.pushState({'level': level}, '', `/?parcours=${level}`);
+//   }
+//   displayExercise();
+// }
 
 // Reload initial HTML content
 function resetHTML(){
-  if(_question && _question.proposal && _question.proposal.length > 0) {
+  if(_context.question && _context.question.proposal && _context.question.proposal.length > 0) {
     if(_htmlEditor) {
-      let htmlcontent = _question.proposal;
+      let htmlcontent = _context.question.proposal;
       let csscontent = '';
       let jscontent = '';
       let cssidx = htmlcontent.indexOf('_CSS_');
       let jsidx = htmlcontent.indexOf('_JS_');
       if (cssidx > -1 || jsidx > -1) {
         if (cssidx === -1) {
-          htmlcontent = _question.proposal.substring(0, jsidx);
+          htmlcontent = _context.question.proposal.substring(0, jsidx);
           csscontent = ' ';
-          jscontent = _question.proposal.substring(jsidx + 5);
+          jscontent = _context.question.proposal.substring(jsidx + 5);
         } else {
-          htmlcontent = _question.proposal.substring(0, cssidx);
+          htmlcontent = _context.question.proposal.substring(0, cssidx);
           if (jsidx === -1) {
-            csscontent = _question.proposal.substring(cssidx + 6);
+            csscontent = _context.question.proposal.substring(cssidx + 6);
             jscontent = ' ';
           } else {
-            csscontent = _question.proposal.substring(cssidx + 6, jsidx);
-            jscontent = _question.proposal.substring(jsidx + 5);
+            csscontent = _context.question.proposal.substring(cssidx + 6, jsidx);
+            jscontent = _context.question.proposal.substring(jsidx + 5);
           }
         }
       }
-      // _htmlEditor.setValue(_question.proposal);
+      // _htmlEditor.setValue(_context.question.proposal);
       _htmlEditor.dispatch({
         changes: {
           from: 0,
@@ -738,7 +770,7 @@ function runCheck(doc, test) {
 
 /// Checks HTML content result
 async function checkResult() {
-  if (!_question) { return; }
+  if (!_context.question) { return; }
   let outputFrame = document.getElementById("output");
   let outputDoc = outputFrame.contentDocument || outputFrame.contentWindow.document;
   let nbFailed = _tests.length;
@@ -791,13 +823,15 @@ async function checkResult() {
         'js': _jsEditor.state.doc.toString()
       };
       if(_nsix) {
+        console.info('postMessage', response);
         window.parent.window.postMessage({
+          'state': '__completed__',
           'answer': '__done__',
           'content': response,
           'from': 'web.nsix.fr'
         }, '*');
       } else {
-        lcms.registerSuccess(_question.id, _activity.id, JSON.stringify(response), (data) => {
+        lcms.registerSuccess(_context.question.id, _activity.id, JSON.stringify(response), (data) => {
           if(!_journey.results[_activity.id]) {
             _journey.results[_activity.id] = [data];
           } else {
@@ -851,8 +885,8 @@ function getHTMLKey(){
   if(_user) {
     key += '_' + _user.externalId;
   }
-  if(_question) {
-    key += '_' + _question.id;
+  if(_context.question) {
+    key += '_' + _context.question.id;
   }
   return key;
 }
@@ -861,8 +895,8 @@ function getCSSKey(){
   if(_user) {
     key += '_' + _user.externalId;
   }
-  if(_question) {
-    key += '_' + _question.id;
+  if(_context.question) {
+    key += '_' + _context.question.id;
   }
   return key;
 }
@@ -871,8 +905,8 @@ function getJSKey(){
   if(_user) {
     key += '_' + _user.externalId;
   }
-  if(_question) {
-    key += '_' + _question.id;
+  if(_context.question) {
+    key += '_' + _context.question.id;
   }
   return key;
 }
@@ -916,22 +950,21 @@ async function init(){
     gfm: true
   });
 
-  document.getElementById('logoutBtn').addEventListener('click', logout);
+  // document.getElementById('logoutBtn').addEventListener('click', logout);
   document.getElementById('checkbtn').addEventListener('click', checkResult);
-  document.getElementById('homebtn').addEventListener('click', () => { displayMenu(); history.pushState(null, '', '/'); });
-  document.getElementById('nextbtn').addEventListener('click', nextQuestion);
+  // document.getElementById('nextbtn').addEventListener('click', nextQuestion);
   document.getElementById('resetbtn').addEventListener('click', resetHTML);
-  document.getElementById('login').addEventListener('click', login);
-  document.getElementById('login2').addEventListener('click', login);
+  // document.getElementById('login').addEventListener('click', login);
+  // document.getElementById('login2').addEventListener('click', login);
   // document.getElementById('skip-login-btn').addEventListener('click', registerSkipLogin);
-  document.getElementById('level-1').addEventListener('click', () => loadJourney(1, true));
-  document.getElementById('level-2').addEventListener('click', () => loadJourney(2, true));
-  document.getElementById('level-3').addEventListener('click', () => loadJourney(3, true));
+  // document.getElementById('level-1').addEventListener('click', () => loadJourney(1, true));
+  // document.getElementById('level-2').addEventListener('click', () => loadJourney(2, true));
+  // document.getElementById('level-3').addEventListener('click', () => loadJourney(3, true));
   // document.getElementById('level-4').addEventListener('click', () => loadJourney(4, true));
-  document.getElementById('profileMenuBtn').addEventListener('click', gui.toggleMenu);
+  // document.getElementById('profileMenuBtn').addEventListener('click', gui.toggleMenu);
 
-  document.getElementById('help').addEventListener('click', gui.showHelp);
-  document.getElementById('help-panel').addEventListener('click', gui.hideHelp);
+  // document.getElementById('help').addEventListener('click', gui.showHelp);
+  // document.getElementById('help-panel').addEventListener('click', gui.hideHelp);
 
   document.getElementById('tab-html').addEventListener('click', gui.opentab);
   document.getElementById('tab-css').addEventListener('click', gui.opentab);
@@ -945,41 +978,52 @@ async function init(){
     }
   });
 
-  lcms.loadUser(async (user) => {
-    let loaded = false;
-    if(user && !user.err) {
-      _user = user;
-      document.getElementById('username').innerHTML = user.firstname || 'Moi';
-      document.getElementById('profile-menu').classList.remove('hidden');
-      if (config.activity || config.embedded) {
-        console.info("NSIX Embedded activity");
+  // _context.question = {
+  //   proposal: '<h2>Chissioua Mbouzi</h2>\n<p>L\'îlot M\'bouzi est l\'un des deux plus grands îlots du lagon de Mayotte (82 ha). Sa vocation longtemps agricole sur plus de 70 % de sa surface laisse la place, dans les années 1990, à un reboisement spontané à la suite de l\'arrêt total de cette activité.</p>\n\n_CSS_\nh2 {\n  background: lightblue;\n}',
+  //   answers: 'style;h2;margin-top="25px";La marge au dessus de l\'élément doit être de 25 pixels.\nstyle;h2;margin-left="50px";La marge à gauche de l\'élément doit être de 50 pixels.\nstyle;h2;margin-bottom="25px";La marge au dessous de l\'élément doit être de 25 pixels.\nstyle;h2;margin-right="50px";La marge à droite de l\'élément doit être de 50 pixels.'
+  // };
+  // displayExercise(_context.question);
 
-        document.getElementById('profile').style.display ='none';
-        document.getElementById('homebtn').style.display = 'none';
-        document.getElementById('logo').style.display ='none';
+  window.parent.window.postMessage({
+    'state': '__initialized__',
+    'from': 'web.nsix.fr'
+  }, '*');
 
-        window.parent.window.postMessage({
-          'state': '__intialized__',
-          'from': 'python.nsix.fr'
-        }, '*');
-        loaded = true;
-      } else {
-        _journeys = await lcms.fetchJourneys();
-        updateAchievements();
-        if(config.parcours >= 0) {
-          loadJourney(config.parcours);
-          loaded = true;
-        }
-      }
-    } else {
-      document.getElementById('login').classList.remove('hidden');
-      _user = null;
-    }
+  // lcms.loadUser(async (user) => {
+  //   let loaded = false;
+  //   if(user && !user.err) {
+  //     _user = user;
+  //     document.getElementById('username').innerHTML = user.firstname || 'Moi';
+  //     document.getElementById('profile-menu').classList.remove('hidden');
+  //     if (config.activity || config.embedded) {
+  //       console.info("NSIX Embedded activity");
+
+  //       document.getElementById('profile').style.display ='none';
+  //       document.getElementById('homebtn').style.display = 'none';
+  //       document.getElementById('logo').style.display ='none';
+
+  //       window.parent.window.postMessage({
+  //         'state': '__intialized__',
+  //         'from': 'python.nsix.fr'
+  //       }, '*');
+  //       loaded = true;
+  //     } else {
+  //       _journeys = await lcms.fetchJourneys();
+  //       updateAchievements();
+  //       if(config.parcours >= 0) {
+  //         loadJourney(config.parcours);
+  //         loaded = true;
+  //       }
+  //     }
+  //   } else {
+  //     document.getElementById('login').classList.remove('hidden');
+  //     _user = null;
+  //   }
 
 
-    if(!loaded) { displayMenu(); }
-    gui.hideLoading();
-  });
+  //   if(!loaded) { displayMenu(); }
+  // });
+  // gui.hideLoading();
 }
 
 // if in iframe (i.e. nsix challenge)

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <title>Web</title>
+  <link rel="shortcut icon" href="img/HTML52.svg"/>
+  <meta charset="utf-8">
+</head>
+<body class="p-4 text-white">
+  <div id="loading" class="z-20">
+    <img src="img/HTML5.svg" alt="Logo HTML">
+  </div>
+
+  <!-- <header class="p-4 rounded-t-lg">
+    <h3 id="logo">
+      <img src="img/HTML5.svg" alt="Logo HTML" class="inline-block" style="height: 32px; margin-top: -4px;">
+      <span id="title" class="text-blue-300 font-bold">Web</span>
+    </h3>
+    <div id="progress" class="hidden"></div>
+    <p id="instruction"></p>
+    <div id="help" class="hidden" title="Besoin d'aide ?"><img src="img/buoy.svg" alt="Aide"></div>
+  </header> -->
+
+  <main id="main" class="hidden">
+    <div class="tabs">
+      <span id="tab-html" class="active"><img src="img/HTML5.svg" alt="Logo HTML"/>HTML</span>
+      <span id="tab-css" ><img src="img/css3.png" alt="Logo CSS"/>CSS</span>
+      <span id="tab-js" ><img src="img/js.png" alt="Logo JS"/>JS</span>
+    </div>
+    <div class="flex flex-wrap">
+      <div class="w-full md:w-1/2 tabcontent">
+        <div id="htmlsrc"
+          class="w-full font-mono text-sm rounded border-2 border-zinc-500 resize-none">
+        </div>
+        <div id="csssrc"
+          class="w-full font-mono text-sm rounded border-2 border-zinc-500 resize-none">
+        </div>
+        <div id="jssrc"
+          class="w-full font-mono text-sm rounded border-2 border-zinc-500 resize-none">
+        </div>
+      </div>
+      <iframe id="output"></iframe>
+    </div>
+    <div id="testsOutput"></div>
+    <button id="checkbtn" class="bg-blue-500 rounded my-2 p-2 shadow-md" type="button">Vérifier</button>
+    <button id="resetbtn" class="bg-purple-700 rounded mx-4 my-2 p-2 shadow-md disabled:bg-gray-600 disabled:text-gray-400" type="button">Réinitialiser</button>
+  </main>
+
+
+  <div id="overlay" class="hidden">
+    <img src="img/success.svg">
+    <div class="done">
+      <div class="done-msg">Bravo, un grand succès !</div>
+      <div class="done-sub">
+        <span class="nsix hidden">Appuyer sur valider pour continuer.</span>
+        <button id="nextbtn" class="standalone hidden bg-blue-500 rounded px-2 text-slate-100 shadow-lg" type="button">Au suivant</button>
+      </div>
+    </div>
+  </div>
+  <!-- <div id="help-panel" class="hidden-right"></div> -->
+  <span id="version"></span>
+
+  <template id="results-table">
+    <table>
+      <thead>
+        <tr>
+          <td>Attendu</td>
+          <td>Obtenu</td>
+          <td class="aide">Aide</td>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </template>
+  <template id="result-line">
+    <tr>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+  </template>
+
+  <template id="nav-template">
+    <div class="nav-elt">3</div>
+  </template>
+
+  <!-- <script src="lib/marked.min.js"></script> -->
+  <script type="module" src="src/js/embed.js"></script>
+</body>
+
+</html>
